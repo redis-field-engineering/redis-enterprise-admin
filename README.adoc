@@ -1,0 +1,33 @@
+= Redis Enterprise Admin
+:linkattrs:
+:project-owner:   redis-field-engineering
+:project-name:    redis-enterprise-admin
+:project-group:   com.redis.enterprise
+:project-version: 0.1.0
+
+image:https://github.com/{project-owner}/{project-name}/actions/workflows/early-access.yml/badge.svg["Build Status", link="https://github.com/{project-owner}/{project-name}/actions"]
+image:https://img.shields.io/maven-central/v/{project-group}/{project-name}.svg[Download, link="https://search.maven.org/#search|ga|1|{project-name}"]
+image:https://img.shields.io/github/downloads/{project-owner}/{project-name}/total[GitHub all releases]
+
+Java admin client for Redis Enterprise.
+
+== Getting Started
+
+.Gradle
+[source,groovy,subs="+attributes"]
+----
+dependencies {
+    testImplementation "{project-group}:{project-name}:{project-version}"
+}
+----
+
+.Maven
+[source,xml,subs="+attributes"]
+----
+<dependency>
+    <groupId>{project-group}</groupId>
+    <artifactId>{project-name}</artifactId>
+    <version>{project-version}</version>
+    <scope>test</scope>
+</dependency>
+----

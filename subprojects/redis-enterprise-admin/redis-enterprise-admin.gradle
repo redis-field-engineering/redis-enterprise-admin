@@ -1,0 +1,7 @@
+dependencies {
+    implementation 'org.slf4j:slf4j-api'
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'org.apache.httpcomponents.client5:httpclient5'
+    testImplementation 'org.slf4j:slf4j-simple'
+    testImplementation group: 'com.redis.testcontainers', name: 'testcontainers-redis-junit-jupiter', version: testcontainersRedisVersion
+}

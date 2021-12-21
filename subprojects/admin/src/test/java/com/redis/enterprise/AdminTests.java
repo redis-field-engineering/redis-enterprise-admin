@@ -1,6 +1,5 @@
 package com.redis.enterprise;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.GeneralSecurityException;
@@ -21,9 +20,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.shaded.org.apache.commons.io.IOUtils;
 
 import com.redis.enterprise.rest.Database;
+import com.redis.enterprise.rest.ModuleInstallResponse;
 import com.redis.testcontainers.RedisEnterpriseContainer;
 import com.redis.testcontainers.RedisEnterpriseContainer.RedisModule;
 
@@ -85,10 +84,9 @@ class AdminTests {
 	void installModule() throws IOException, ParseException {
 		String gearsModuleFile = "redisgears.linux-bionic-x64.1.0.6.zip";
 		try (InputStream zipInputStream = getClass().getClassLoader().getResourceAsStream(gearsModuleFile)) {
-			ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			IOUtils.copy(zipInputStream, baos);
 			log.info("Installing module {}", gearsModuleFile);
-			admin.installModule(gearsModuleFile, baos.toByteArray()).getActionUid();
+			ModuleInstallResponse response = admin.installModule(gearsModuleFile, zipInputStream);
+			log.info("Installed module {}, action ID: {}", gearsModuleFile, response.getActionUid());
 			Assertions.assertTrue(
 					admin.getModules().stream().anyMatch(m -> m.getName().equals(RedisModule.GEARS.getName())));
 		}

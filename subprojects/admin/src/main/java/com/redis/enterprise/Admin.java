@@ -1,6 +1,8 @@
 package com.redis.enterprise;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
@@ -9,6 +11,7 @@ import java.util.List;
 
 import javax.net.ssl.SSLContext;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.hc.client5.http.HttpResponseException;
 import org.apache.hc.client5.http.auth.UsernamePasswordCredentials;
 import org.apache.hc.client5.http.classic.methods.HttpDelete;
@@ -134,7 +137,7 @@ public class Admin implements AutoCloseable {
 	}
 
 	private <T> T get(String path, JavaType type) throws ParseException, IOException {
-		return read(new HttpGet(uri(path)), type, HttpStatus.SC_OK);
+		return read(header(new HttpGet(uri(path))), type, HttpStatus.SC_OK);
 	}
 
 	private <T> T delete(String path, Class<T> type) throws ParseException, IOException {
@@ -142,7 +145,12 @@ public class Admin implements AutoCloseable {
 	}
 
 	private <T> T delete(String path, JavaType type) throws ParseException, IOException {
-		return read(new HttpDelete(uri(path)), type, HttpStatus.SC_OK);
+		return read(header(new HttpDelete(uri(path))), type, HttpStatus.SC_OK);
+	}
+
+	private ClassicHttpRequest header(ClassicHttpRequest request) {
+		request.setHeader(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE_JSON);
+		return request;
 	}
 
 	private <T> T post(String path, Object request, Class<T> responseType) throws ParseException, IOException {
@@ -153,15 +161,10 @@ public class Admin implements AutoCloseable {
 		HttpPost post = new HttpPost(uri(path));
 		String json = objectMapper.writeValueAsString(request);
 		post.setEntity(new StringEntity(json));
-		return read(post, responseType, HttpStatus.SC_OK);
-	}
-
-	private <T> T read(ClassicHttpRequest request, Class<T> type, int successCode) throws ParseException, IOException {
-		return read(request, SimpleType.constructUnsafe(type), successCode);
+		return read(header(post), responseType, HttpStatus.SC_OK);
 	}
 
 	private <T> T read(ClassicHttpRequest request, JavaType type, int successCode) throws IOException, ParseException {
-		request.setHeader(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE_JSON);
 		HttpHost target = new HttpHost(protocol, host, port);
 		HttpClientContext localContext = HttpClientContext.create();
 		if (credentials != null) {
@@ -170,9 +173,11 @@ public class Admin implements AutoCloseable {
 			localContext.resetAuthExchange(target, basicAuth);
 		}
 		CloseableHttpResponse response = client.execute(request, localContext);
+		String json = EntityUtils.toString(response.getEntity());
 		if (response.getCode() == successCode) {
-			return objectMapper.readValue(EntityUtils.toString(response.getEntity()), type);
+			return objectMapper.readValue(json, type);
 		}
+		log.error("Error: {}", json);
 		throw new HttpResponseException(response.getCode(), response.getReasonPhrase());
 	}
 
@@ -217,13 +222,18 @@ public class Admin implements AutoCloseable {
 		});
 	}
 
-	public ModuleInstallResponse installModule(String filename, byte[] bytes) throws ParseException, IOException {
+	public ModuleInstallResponse installModule(String filename, InputStream inputStream)
+			throws ParseException, IOException {
 		HttpPost post = new HttpPost(uri(v2(MODULES)));
 		MultipartEntityBuilder builder = MultipartEntityBuilder.create();
 		builder.setMode(HttpMultipartMode.STRICT);
-		builder.addPart("module", new ByteArrayBody(bytes, ContentType.MULTIPART_FORM_DATA, filename));
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		IOUtils.copy(inputStream, baos);
+		builder.addPart("module", new ByteArrayBody(baos.toByteArray(), ContentType.MULTIPART_FORM_DATA, filename));
 		post.setEntity(builder.build());
-		ModuleInstallResponse response = read(post, ModuleInstallResponse.class, HttpStatus.SC_ACCEPTED);
+		ModuleInstallResponse response = read(post, SimpleType.constructUnsafe(ModuleInstallResponse.class),
+				HttpStatus.SC_ACCEPTED);
+		baos.close();
 		Awaitility.await().timeout(Duration.ofSeconds(30)).pollInterval(Duration.ofSeconds(3)).until(() -> {
 			log.info("Checking status of action {}", response.getActionUid());
 			Action status = getAction(response.getActionUid());

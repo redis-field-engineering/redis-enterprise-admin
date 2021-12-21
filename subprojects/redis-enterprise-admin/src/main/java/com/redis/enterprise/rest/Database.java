@@ -1,6 +1,5 @@
 package com.redis.enterprise.rest;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -29,10 +28,10 @@ public class Database {
 	private Boolean ossCluster;
 	private ProxyPolicy proxyPolicy;
 	private IPType ossClusterAPIPreferredIPType;
-	private List<Regex> shardKeyRegex = new ArrayList<>();
+	private List<Regex> shardKeyRegex;
 	private Integer shardCount;
 	private ShardPlacement shardPlacement;
-	private List<ModuleConfig> moduleConfigs = new ArrayList<>();
+	private List<ModuleConfig> moduleConfigs;
 
 	public Long getUid() {
 		return uid;

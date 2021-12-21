@@ -27,10 +27,4 @@ public class Command {
 		this.args = args;
 	}
 
-	public static Command of(String commandString) {
-		Command command = new Command();
-		command.setCommand(commandString);
-		return command;
-	}
-
 }

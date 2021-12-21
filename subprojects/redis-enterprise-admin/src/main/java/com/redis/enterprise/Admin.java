@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
+import java.time.Duration;
 import java.util.List;
 
 import javax.net.ssl.SSLContext;
@@ -18,6 +19,7 @@ import org.apache.hc.client5.http.entity.mime.HttpMultipartMode;
 import org.apache.hc.client5.http.entity.mime.MultipartEntityBuilder;
 import org.apache.hc.client5.http.impl.auth.BasicScheme;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
@@ -28,7 +30,6 @@ import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactory;
 import org.apache.hc.client5.http.ssl.SSLConnectionSocketFactoryBuilder;
 import org.apache.hc.client5.http.ssl.TrustAllStrategy;
 import org.apache.hc.core5.http.ClassicHttpRequest;
-import org.apache.hc.core5.http.ClassicHttpResponse;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.HttpHeaders;
 import org.apache.hc.core5.http.HttpHost;
@@ -37,6 +38,7 @@ import org.apache.hc.core5.http.ParseException;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.ssl.SSLContexts;
+import org.awaitility.Awaitility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,11 +55,11 @@ import com.redis.enterprise.rest.Database;
 import com.redis.enterprise.rest.Module;
 import com.redis.enterprise.rest.ModuleInstallResponse;
 
-public class Admin {
+public class Admin implements AutoCloseable {
 
 	private static final Logger log = LoggerFactory.getLogger(Admin.class);
 
-	public static final Object CONTENT_TYPE_JSON = "application/json";
+	public static final String CONTENT_TYPE_JSON = "application/json";
 	public static final String V1 = "/v1/";
 	public static final String V2 = "/v2/";
 	public static final String DEFAULT_PROTOCOL = "https";
@@ -73,12 +75,26 @@ public class Admin {
 	private final ObjectMapper objectMapper = new ObjectMapper()
 			.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 	private final UsernamePasswordCredentials credentials;
+	private final CloseableHttpClient client;
 	private String protocol = DEFAULT_PROTOCOL;
 	private String host = DEFAULT_HOST;
 	private int port = DEFAULT_PORT;
 
-	public Admin(String userName, final char[] password) {
+	public Admin(String userName, final char[] password) throws GeneralSecurityException {
 		this.credentials = new UsernamePasswordCredentials(userName, password);
+		SSLContext sslcontext = SSLContexts.custom().loadTrustMaterial(new TrustAllStrategy()).build();
+		SSLConnectionSocketFactory sslSocketFactory = SSLConnectionSocketFactoryBuilder.create()
+				.setSslContext(sslcontext).setHostnameVerifier(NoopHostnameVerifier.INSTANCE).build();
+		HttpClientConnectionManager cm = PoolingHttpClientConnectionManagerBuilder.create()
+				.setSSLSocketFactory(sslSocketFactory).build();
+		HttpClientBuilder clientBuilder = HttpClients.custom();
+		clientBuilder.setConnectionManager(cm);
+		this.client = clientBuilder.build();
+	}
+
+	@Override
+	public void close() throws Exception {
+		client.close();
 	}
 
 	public void setHost(String host) {
@@ -113,97 +129,95 @@ public class Admin {
 		}
 	}
 
-	private <T> T get(String path, Class<T> type) throws ParseException, GeneralSecurityException, IOException {
+	private <T> T get(String path, Class<T> type) throws ParseException, IOException {
 		return get(path, SimpleType.constructUnsafe(type));
 	}
 
-	private <T> T get(String path, JavaType type) throws ParseException, GeneralSecurityException, IOException {
-		return read(new HttpGet(uri(path)), type);
+	private <T> T get(String path, JavaType type) throws ParseException, IOException {
+		return read(new HttpGet(uri(path)), type, HttpStatus.SC_OK);
 	}
 
-	private <T> T post(String path, Object request, Class<T> responseType)
-			throws ParseException, GeneralSecurityException, IOException {
+	private <T> T delete(String path, Class<T> type) throws ParseException, IOException {
+		return delete(path, SimpleType.constructUnsafe(type));
+	}
+
+	private <T> T delete(String path, JavaType type) throws ParseException, IOException {
+		return read(new HttpDelete(uri(path)), type, HttpStatus.SC_OK);
+	}
+
+	private <T> T post(String path, Object request, Class<T> responseType) throws ParseException, IOException {
 		return post(path, request, SimpleType.constructUnsafe(responseType));
 	}
 
-	private ClassicHttpResponse delete(String path) throws GeneralSecurityException, IOException {
-		return execute(new HttpDelete(uri(path)));
-	}
-
-	private <T> T post(String path, Object request, JavaType responseType)
-			throws ParseException, GeneralSecurityException, IOException {
+	private <T> T post(String path, Object request, JavaType responseType) throws ParseException, IOException {
 		HttpPost post = new HttpPost(uri(path));
 		String json = objectMapper.writeValueAsString(request);
 		post.setEntity(new StringEntity(json));
-		log.info("POST {}", json);
-		return read(post, responseType);
+		return read(post, responseType, HttpStatus.SC_OK);
 	}
 
-	private <T> T read(ClassicHttpRequest request, JavaType type)
-			throws ParseException, GeneralSecurityException, IOException {
-		request.setHeader(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE_JSON);
-		return read(request, type, HttpStatus.SC_OK);
-	}
-
-	private <T> T read(ClassicHttpRequest request, Class<T> type, int successCode)
-			throws ParseException, GeneralSecurityException, IOException {
+	private <T> T read(ClassicHttpRequest request, Class<T> type, int successCode) throws ParseException, IOException {
 		return read(request, SimpleType.constructUnsafe(type), successCode);
 	}
 
-	private <T> T read(ClassicHttpRequest request, JavaType type, int successCode)
-			throws GeneralSecurityException, IOException, ParseException {
-		ClassicHttpResponse response = execute(request);
+	private <T> T read(ClassicHttpRequest request, JavaType type, int successCode) throws IOException, ParseException {
+		request.setHeader(HttpHeaders.CONTENT_TYPE, CONTENT_TYPE_JSON);
+		HttpHost target = new HttpHost(protocol, host, port);
+		HttpClientContext localContext = HttpClientContext.create();
+		if (credentials != null) {
+			BasicScheme basicAuth = new BasicScheme();
+			basicAuth.initPreemptive(credentials);
+			localContext.resetAuthExchange(target, basicAuth);
+		}
+		CloseableHttpResponse response = client.execute(request, localContext);
 		if (response.getCode() == successCode) {
 			return objectMapper.readValue(EntityUtils.toString(response.getEntity()), type);
 		}
 		throw new HttpResponseException(response.getCode(), response.getReasonPhrase());
 	}
 
-	private ClassicHttpResponse execute(ClassicHttpRequest request) throws GeneralSecurityException, IOException {
-		SSLContext sslcontext = SSLContexts.custom().loadTrustMaterial(new TrustAllStrategy()).build();
-		SSLConnectionSocketFactory sslSocketFactory = SSLConnectionSocketFactoryBuilder.create()
-				.setSslContext(sslcontext).setHostnameVerifier(NoopHostnameVerifier.INSTANCE).build();
-		HttpClientConnectionManager cm = PoolingHttpClientConnectionManagerBuilder.create()
-				.setSSLSocketFactory(sslSocketFactory).build();
-		HttpClientBuilder clientBuilder = HttpClients.custom();
-		clientBuilder.setConnectionManager(cm);
-		try (CloseableHttpClient client = clientBuilder.build()) {
-			HttpHost target = new HttpHost(protocol, host, port);
-			HttpClientContext localContext = HttpClientContext.create();
-			if (credentials != null) {
-				BasicScheme basicAuth = new BasicScheme();
-				basicAuth.initPreemptive(credentials);
-				localContext.resetAuthExchange(target, basicAuth);
-			}
-			return client.execute(request, localContext);
-		}
-	}
-
-	public List<Module> getModules() throws ParseException, GeneralSecurityException, IOException {
+	public List<Module> getModules() throws ParseException, IOException {
 		CollectionType type = objectMapper.getTypeFactory().constructCollectionType(List.class, Module.class);
 		return get(v1(MODULES), type);
 	}
 
-	public Database createDatabase(Database database)
-			throws ParseException, GeneralSecurityException, IOException {
-		return post(v1(BDBS), database, Database.class);
+	public Database createDatabase(Database database) throws ParseException, IOException {
+		Database response = post(v1(BDBS), database, Database.class);
+		long uid = response.getUid();
+		Awaitility.await().until(() -> {
+			Command command = new Command();
+			command.setCommand("PING");
+			try {
+				return executeCommand(uid, command).getResponse().asBoolean();
+			} catch (HttpResponseException e) {
+				log.info("PING unsuccessful, retrying...");
+				return false;
+			}
+		});
+		return response;
 	}
 
-	public List<Database> getDatabases() throws ParseException, GeneralSecurityException, IOException {
+	public List<Database> getDatabases() throws ParseException, IOException {
 		CollectionType type = objectMapper.getTypeFactory().constructCollectionType(List.class, Database.class);
 		return get(v1(BDBS), type);
 	}
 
-	public void deleteDatabase(long uid) throws GeneralSecurityException, IOException {
-		ClassicHttpResponse response = delete(v1(BDBS, String.valueOf(uid)));
-		if (response.getCode() != HttpStatus.SC_OK) {
-			throw new HttpResponseException(response.getCode(), response.getReasonPhrase());
-		}
-		log.info("Deleted database {}", uid);
+	public void deleteDatabase(long uid) {
+		Awaitility.await().timeout(Duration.ofSeconds(30)).pollInterval(Duration.ofSeconds(1)).until(() -> {
+			try {
+				delete(v1(BDBS, String.valueOf(uid)), Database.class);
+				return true;
+			} catch (HttpResponseException e) {
+				if (e.getStatusCode() == HttpStatus.SC_CONFLICT) {
+					log.info("Could not delete database {}, retrying...", uid);
+					return false;
+				}
+				throw e;
+			}
+		});
 	}
 
-	public ModuleInstallResponse installModule(String filename, byte[] bytes)
-			throws ParseException, GeneralSecurityException, IOException {
+	public ModuleInstallResponse installModule(String filename, byte[] bytes) throws ParseException, IOException {
 		HttpPost post = new HttpPost(uri(v2(MODULES)));
 		MultipartEntityBuilder builder = MultipartEntityBuilder.create();
 		builder.setMode(HttpMultipartMode.STRICT);
@@ -212,16 +226,15 @@ public class Admin {
 		return read(post, ModuleInstallResponse.class, HttpStatus.SC_ACCEPTED);
 	}
 
-	public Bootstrap getBootstrap() throws ParseException, GeneralSecurityException, IOException {
+	public Bootstrap getBootstrap() throws ParseException, IOException {
 		return get(v1(BOOTSTRAP), Bootstrap.class);
 	}
 
-	public Action getAction(String uid) throws ParseException, GeneralSecurityException, IOException {
+	public Action getAction(String uid) throws ParseException, IOException {
 		return get(v1(ACTIONS, uid), Action.class);
 	}
 
-	public CommandResponse executeCommand(long bdb, Command command)
-			throws ParseException, GeneralSecurityException, IOException {
+	public CommandResponse executeCommand(long bdb, Command command) throws ParseException, IOException {
 		return post(v1(BDBS, String.valueOf(bdb), COMMAND), command, CommandResponse.class);
 	}
 

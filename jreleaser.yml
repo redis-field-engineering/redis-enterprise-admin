@@ -1,5 +1,5 @@
 project:
-  name: rs-sdk
+  name: redis-enterprise-admin
   description: Redis Enterprise Admin
   longDescription: Java admin client for Redis Enterprise
   website: https://github.com/redis-field-engineering/redis-enterprise-admin
@@ -92,7 +92,7 @@ checksum:
   files: false
 
 distributions:
-  redis-enterprise-admin:
+  admin:
     artifacts:
       - path: subprojects/{{distributionName}}/build/distributions/{{distributionName}}-{{projectVersion}}.zip
         transform: '{{distributionName}}/{{distributionName}}-{{projectEffectiveVersion}}.zip'

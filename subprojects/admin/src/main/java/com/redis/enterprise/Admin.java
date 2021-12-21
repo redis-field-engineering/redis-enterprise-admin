@@ -223,7 +223,17 @@ public class Admin implements AutoCloseable {
 		builder.setMode(HttpMultipartMode.STRICT);
 		builder.addPart("module", new ByteArrayBody(bytes, ContentType.MULTIPART_FORM_DATA, filename));
 		post.setEntity(builder.build());
-		return read(post, ModuleInstallResponse.class, HttpStatus.SC_ACCEPTED);
+		ModuleInstallResponse response = read(post, ModuleInstallResponse.class, HttpStatus.SC_ACCEPTED);
+		Awaitility.await().until(() -> {
+			log.info("Checking status of action {}", response.getActionUID());
+			Action status = getAction(response.getActionUID());
+			if ("completed".equals(status.getStatus())) {
+				return true;
+			}
+			log.info("Action {} status: {}", response.getActionUID(), status.getStatus());
+			return false;
+		});
+		return response;
 	}
 
 	public Bootstrap getBootstrap() throws ParseException, IOException {

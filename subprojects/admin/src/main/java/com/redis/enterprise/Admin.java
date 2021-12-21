@@ -225,12 +225,12 @@ public class Admin implements AutoCloseable {
 		post.setEntity(builder.build());
 		ModuleInstallResponse response = read(post, ModuleInstallResponse.class, HttpStatus.SC_ACCEPTED);
 		Awaitility.await().timeout(Duration.ofSeconds(30)).pollInterval(Duration.ofSeconds(3)).until(() -> {
-			log.info("Checking status of action {}", response.getActionUID());
-			Action status = getAction(response.getActionUID());
+			log.info("Checking status of action {}", response.getActionUid());
+			Action status = getAction(response.getActionUid());
 			if ("completed".equals(status.getStatus())) {
 				return true;
 			}
-			log.info("Action {} status: {}", response.getActionUID(), status.getStatus());
+			log.info("Action {} status: {}", response.getActionUid(), status.getStatus());
 			return false;
 		});
 		return response;

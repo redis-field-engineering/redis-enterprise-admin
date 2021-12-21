@@ -88,7 +88,7 @@ class AdminTests {
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			IOUtils.copy(zipInputStream, baos);
 			log.info("Installing module {}", gearsModuleFile);
-			admin.installModule(gearsModuleFile, baos.toByteArray()).getActionUID();
+			admin.installModule(gearsModuleFile, baos.toByteArray()).getActionUid();
 			Assertions.assertTrue(
 					admin.getModules().stream().anyMatch(m -> m.getName().equals(RedisModule.GEARS.getName())));
 		}

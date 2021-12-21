@@ -6,16 +6,16 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ModuleInstallResponse {
 
-	private String actionUID;
+	private String actionUid;
 	private String uid;
 
-	public String getActionUID() {
-		return actionUID;
+	public String getActionUid() {
+		return actionUid;
 	}
 
 	@JsonProperty("action_uid")
-	public void setActionUID(String actionUID) {
-		this.actionUID = actionUID;
+	public void setActionUid(String actionUid) {
+		this.actionUid = actionUid;
 	}
 
 	public String getUid() {

@@ -1,13 +1,14 @@
 = Redis Enterprise Admin
 :linkattrs:
-:project-owner:   redis-field-engineering
-:project-group:   com.redis.enterprise
-:project-name:    admin
-:project-version: 0.1.0
+:project-owner:    redis-field-engineering
+:project-name:     redis-enterprise-admin
+:project-group:    com.redis.enterprise
+:project-artifact: admin
+:project-version:  0.1.0
 :tests-path: redis-field-engineering/redis-enterprise-admin/blob/master/subprojects/admin/src/test/java/com/redis/enterprise/
 
 image:https://github.com/{project-owner}/{project-name}/actions/workflows/early-access.yml/badge.svg["Build Status", link="https://github.com/{project-owner}/{project-name}/actions"]
-image:https://img.shields.io/maven-central/v/{project-group}/{project-name}.svg[Download, link="https://search.maven.org/#search|ga|1|{project-name}"]
+image:https://img.shields.io/maven-central/v/{project-group}/{project-artifact}.svg[Download, link="https://search.maven.org/#search|ga|1|{project-group} {project-artifact}"]
 image:https://img.shields.io/github/downloads/{project-owner}/{project-name}/total[GitHub all releases]
 
 Java admin client for Redis Enterprise that wraps the REST API.
@@ -18,7 +19,7 @@ Java admin client for Redis Enterprise that wraps the REST API.
 [source,groovy,subs="+attributes"]
 ----
 dependencies {
-    testImplementation "{project-group}:{project-name}:{project-version}"
+    testImplementation "{project-group}:{project-artifact}:{project-version}"
 }
 ----
 
@@ -27,7 +28,7 @@ dependencies {
 ----
 <dependency>
     <groupId>{project-group}</groupId>
-    <artifactId>{project-name}</artifactId>
+    <artifactId>{project-artifact}</artifactId>
     <version>{project-version}</version>
     <scope>test</scope>
 </dependency>

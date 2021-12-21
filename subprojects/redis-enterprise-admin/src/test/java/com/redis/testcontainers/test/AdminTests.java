@@ -9,6 +9,8 @@ import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -17,6 +19,7 @@ import com.redis.enterprise.rest.Database;
 import com.redis.testcontainers.RedisEnterpriseContainer;
 
 @Testcontainers
+@TestInstance(Lifecycle.PER_CLASS)
 class AdminTests {
 
 	@Container

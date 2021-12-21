@@ -5,3 +5,9 @@ dependencies {
     testImplementation 'org.slf4j:slf4j-simple'
     testImplementation group: 'com.redis.testcontainers', name: 'testcontainers-redis-junit-jupiter', version: testcontainersRedisVersion
 }
+
+eclipse {
+    project {
+        name = 'redis-enterprise-admin-core'
+    }
+}

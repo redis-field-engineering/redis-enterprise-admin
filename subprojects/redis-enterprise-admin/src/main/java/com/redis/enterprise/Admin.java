@@ -153,11 +153,10 @@ public class Admin {
 	private <T> T read(ClassicHttpRequest request, JavaType type, int successCode)
 			throws GeneralSecurityException, IOException, ParseException {
 		ClassicHttpResponse response = execute(request);
-		String responseString = EntityUtils.toString(response.getEntity());
 		if (response.getCode() == successCode) {
-			return objectMapper.readValue(responseString, type);
+			return objectMapper.readValue(EntityUtils.toString(response.getEntity()), type);
 		}
-		throw new HttpResponseException(response.getCode(), responseString);
+		throw new HttpResponseException(response.getCode(), response.getReasonPhrase());
 	}
 
 	private ClassicHttpResponse execute(ClassicHttpRequest request) throws GeneralSecurityException, IOException {

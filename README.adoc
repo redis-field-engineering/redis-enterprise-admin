@@ -4,7 +4,7 @@
 :project-name:     redis-enterprise-admin
 :project-group:    com.redis.enterprise
 :project-artifact: admin
-:project-version:  0.1.0
+:project-version: 0.1.1
 :tests-path: redis-field-engineering/redis-enterprise-admin/blob/master/subprojects/admin/src/test/java/com/redis/enterprise/
 
 image:https://github.com/{project-owner}/{project-name}/actions/workflows/early-access.yml/badge.svg["Build Status", link="https://github.com/{project-owner}/{project-name}/actions"]

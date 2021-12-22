@@ -24,6 +24,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import com.redis.enterprise.rest.Database;
+import com.redis.enterprise.rest.Database.Builder.Module;
 import com.redis.enterprise.rest.ModuleInstallResponse;
 import com.redis.testcontainers.RedisEnterpriseContainer;
 import com.redis.testcontainers.RedisEnterpriseContainer.RedisModule;
@@ -63,15 +64,24 @@ class AdminTests {
 
 	@Test
 	void createDatabase() throws ParseException, GeneralSecurityException, IOException {
-		String databaseName = "CreateTestDB";
+		String databaseName = "CreateDBTest";
 		admin.createDatabase(Database.name(databaseName).ossCluster(true).build());
 		Stream<Database> stream = admin.getDatabases().stream().filter(d -> d.getName().equals(databaseName));
 		Assertions.assertEquals(1, stream.count());
 	}
 
 	@Test
+	void createSearchDatabase() throws ParseException, IOException {
+		String databaseName = "CreateSearchDBTest";
+		admin.createDatabase(Database.name(databaseName).module(Module.SEARCH).build());
+		List<Database> databases = admin.getDatabases();
+		Assertions.assertEquals(1, databases.size());
+		Assertions.assertEquals(Module.SEARCH.getName(), databases.get(0).getModules().get(0).getName());
+	}
+
+	@Test
 	void deleteDatabase() throws ParseException, GeneralSecurityException, IOException {
-		String databaseName = "DeleteTestDB";
+		String databaseName = "DeleteDBTest";
 		Database database = admin.createDatabase(Database.name(databaseName).build());
 		admin.deleteDatabase(database.getUid());
 		Awaitility.await().until(() -> admin.getDatabases().stream().noneMatch(d -> d.getUid() == database.getUid()));
@@ -87,10 +97,14 @@ class AdminTests {
 			Assertions.assertTrue(
 					admin.getModules().stream().anyMatch(m -> m.getName().equals(RedisModule.GEARS.getName())));
 		}
+		admin.createDatabase(Database.name("ModuleInstallDBTest").module(Module.SEARCH).build());
+		List<Database> databases = admin.getDatabases();
+		Assertions.assertEquals(1, databases.size());
+		Assertions.assertEquals(Module.SEARCH.getName(), databases.get(0).getModules().get(0).getName());
 	}
 
 	@Test
-	void databaseCreateException() throws ParseException, IOException {
+	void createDatabaseException() throws ParseException, IOException {
 		Assertions.assertThrows(HttpResponseException.class, () -> admin.createDatabase(
 				Database.name("DatabaseCreateExceptionTestDB").memory(DataSize.ofGigabytes(10)).build()));
 	}

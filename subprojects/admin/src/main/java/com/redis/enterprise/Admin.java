@@ -7,7 +7,9 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.net.ssl.SSLContext;
 
@@ -55,6 +57,7 @@ import com.redis.enterprise.rest.Bootstrap;
 import com.redis.enterprise.rest.Command;
 import com.redis.enterprise.rest.CommandResponse;
 import com.redis.enterprise.rest.Database;
+import com.redis.enterprise.rest.Database.ModuleConfig;
 import com.redis.enterprise.rest.Module;
 import com.redis.enterprise.rest.ModuleInstallResponse;
 
@@ -186,6 +189,16 @@ public class Admin implements AutoCloseable {
 	}
 
 	public Database createDatabase(Database database) throws ParseException, IOException {
+		Map<String, Module> installedModules = new HashMap<>();
+		for (Module module : getModules()) {
+			installedModules.put(module.getName(), module);
+		}
+		for (ModuleConfig moduleConfig : database.getModules()) {
+			if (!installedModules.containsKey(moduleConfig.getName())) {
+				throw new IllegalArgumentException(String.format("Module %s not installed", moduleConfig.getName()));
+			}
+			moduleConfig.setId(installedModules.get(moduleConfig.getName()).getId());
+		}
 		Database response = post(v1(BDBS), database, Database.class);
 		long uid = response.getUid();
 		Awaitility.await().until(() -> {
@@ -245,7 +258,13 @@ public class Admin implements AutoCloseable {
 		return response;
 	}
 
-	public Bootstrap getBootstrap() throws ParseException, IOException {
+	public void waitForBoostrap() {
+		Awaitility.await().pollInterval(Duration.ofSeconds(3)).timeout(Duration.ofMinutes(1))
+				.until(() -> "idle".equals(getBootstrap().getStatus().getState()));
+
+	}
+
+	private Bootstrap getBootstrap() throws ParseException, IOException {
 		return get(v1(BOOTSTRAP), Bootstrap.class);
 	}
 

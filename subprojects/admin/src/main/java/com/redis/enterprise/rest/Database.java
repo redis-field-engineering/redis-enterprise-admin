@@ -1,9 +1,9 @@
 package com.redis.enterprise.rest;
 
-import java.util.Collections;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.apache.hc.core5.util.Asserts;
 import org.springframework.util.unit.DataSize;
@@ -26,10 +26,10 @@ public class Database {
 	private boolean ossCluster;
 	private ProxyPolicy proxyPolicy;
 	private IPType ossClusterAPIPreferredIPType;
-	private List<Regex> shardKeyRegex;
+	private List<ShardKeyRegex> shardKeyRegex;
 	private Integer shardCount;
 	private ShardPlacement shardPlacement;
-	private List<ModuleConfig> moduleConfigs;
+	private List<ModuleConfig> modules;
 
 	private Database() {
 	}
@@ -45,10 +45,10 @@ public class Database {
 		this.ossCluster = builder.ossCluster;
 		this.proxyPolicy = builder.proxyPolicy;
 		this.ossClusterAPIPreferredIPType = builder.ossClusterAPIPreferredIPType;
-		this.shardKeyRegex = builder.shardKeyRegex;
+		this.shardKeyRegex = builder.shardKeyRegexes.stream().map(ShardKeyRegex::new).collect(Collectors.toList());
 		this.shardCount = builder.shardCount;
 		this.shardPlacement = builder.shardPlacement;
-		this.moduleConfigs = builder.moduleConfigs;
+		this.modules = builder.moduleConfigs;
 	}
 
 	public Long getUid() {
@@ -136,11 +136,11 @@ public class Database {
 	}
 
 	@JsonProperty("shard_key_regex")
-	public List<Regex> getShardKeyRegex() {
+	public List<ShardKeyRegex> getShardKeyRegex() {
 		return shardKeyRegex;
 	}
 
-	public void setShardKeyRegex(List<Regex> shardKeyRegex) {
+	public void setShardKeyRegex(List<ShardKeyRegex> shardKeyRegex) {
 		this.shardKeyRegex = shardKeyRegex;
 	}
 
@@ -163,16 +163,12 @@ public class Database {
 	}
 
 	@JsonProperty("module_list")
-	public List<ModuleConfig> getModuleConfigs() {
-		return moduleConfigs;
+	public List<ModuleConfig> getModules() {
+		return modules;
 	}
 
-	public void setModuleConfigs(List<ModuleConfig> moduleConfigs) {
-		this.moduleConfigs = moduleConfigs;
-	}
-
-	public void setModules(List<String> names) {
-		this.setModuleConfigs(names.stream().map(ModuleConfig::new).collect(Collectors.toList()));
+	public void setModules(List<ModuleConfig> modules) {
+		this.modules = modules;
 	}
 
 	public enum IPType {
@@ -239,14 +235,14 @@ public class Database {
 	}
 
 	@JsonInclude(JsonInclude.Include.NON_NULL)
-	public static class Regex {
+	public static class ShardKeyRegex {
 
 		private String regex;
 
-		public Regex() {
+		public ShardKeyRegex() {
 		}
 
-		public Regex(String regex) {
+		public ShardKeyRegex(String regex) {
 			this.regex = regex;
 		}
 
@@ -280,10 +276,10 @@ public class Database {
 		private boolean ossCluster;
 		private ProxyPolicy proxyPolicy;
 		private IPType ossClusterAPIPreferredIPType;
-		private List<Regex> shardKeyRegex = Collections.emptyList();
+		private List<String> shardKeyRegexes = new ArrayList<>();
 		private Integer shardCount;
 		private ShardPlacement shardPlacement;
-		private List<ModuleConfig> moduleConfigs = Collections.emptyList();
+		private List<ModuleConfig> moduleConfigs = new ArrayList<>();
 
 		private Builder() {
 		}
@@ -345,8 +341,15 @@ public class Database {
 			return this;
 		}
 
-		public Builder shardKeyRegex(List<Regex> shardKeyRegex) {
-			this.shardKeyRegex = shardKeyRegex;
+		public Builder shardKeyRegex(String regex) {
+			this.shardKeyRegexes.add(regex);
+			return this;
+		}
+
+		public Builder shardKeyRegexes(String... regexes) {
+			for (String regex : regexes) {
+				shardKeyRegex(regex);
+			}
 			return this;
 		}
 
@@ -354,8 +357,8 @@ public class Database {
 			Asserts.check(shardCount > 0, "Shard count must be strictly positive");
 			this.shardCount = shardCount;
 			if (shardCount > 1) {
-				this.sharding = true;
-				this.shardKeyRegex = Stream.of(DEFAULT_SHARD_KEY_REGEXES).map(Regex::new).collect(Collectors.toList());
+				sharding(true);
+				shardKeyRegexes(DEFAULT_SHARD_KEY_REGEXES);
 			}
 			return this;
 		}
@@ -365,13 +368,46 @@ public class Database {
 			return this;
 		}
 
-		public Builder moduleConfigs(List<ModuleConfig> moduleConfigs) {
-			this.moduleConfigs = moduleConfigs;
+		public Builder module(Module module) {
+			this.moduleConfigs.add(new ModuleConfig(module.getName()));
+			return this;
+		}
+
+		public Builder modules(Module... modules) {
+			for (Module module : modules) {
+				module(module);
+			}
+			return this;
+		}
+
+		public Builder moduleConfig(ModuleConfig moduleConfig) {
+			this.moduleConfigs.add(moduleConfig);
+			return this;
+		}
+
+		public Builder moduleConfigs(ModuleConfig... moduleConfigs) {
+			this.moduleConfigs = Arrays.asList(moduleConfigs);
 			return this;
 		}
 
 		public Database build() {
 			return new Database(this);
+		}
+
+		public enum Module {
+
+			BLOOM("bf"), GEARS("rg"), GRAPH("graph"), JSON("ReJSON"), SEARCH("search"), TIMESERIES("timeseries");
+
+			private final String name;
+
+			Module(String name) {
+				this.name = name;
+			}
+
+			public String getName() {
+				return name;
+			}
+
 		}
 	}
 }

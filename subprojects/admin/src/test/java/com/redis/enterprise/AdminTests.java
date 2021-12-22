@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.apache.hc.client5.http.HttpResponseException;
 import org.apache.hc.core5.http.ParseException;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterAll;
@@ -18,6 +19,7 @@ import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.unit.DataSize;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -85,6 +87,12 @@ class AdminTests {
 			Assertions.assertTrue(
 					admin.getModules().stream().anyMatch(m -> m.getName().equals(RedisModule.GEARS.getName())));
 		}
+	}
+
+	@Test
+	void databaseCreateException() throws ParseException, IOException {
+		Assertions.assertThrows(HttpResponseException.class, () -> admin.createDatabase(
+				Database.name("DatabaseCreateExceptionTestDB").memory(DataSize.ofGigabytes(10)).build()));
 	}
 
 }

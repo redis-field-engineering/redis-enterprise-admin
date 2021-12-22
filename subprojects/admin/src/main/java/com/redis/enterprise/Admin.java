@@ -177,8 +177,7 @@ public class Admin implements AutoCloseable {
 		if (response.getCode() == successCode) {
 			return objectMapper.readValue(json, type);
 		}
-		log.error("Error: {}", json);
-		throw new HttpResponseException(response.getCode(), response.getReasonPhrase());
+		throw new HttpResponseException(response.getCode(), response.getReasonPhrase() + " " + json);
 	}
 
 	public List<Module> getModules() throws ParseException, IOException {

@@ -1,10 +1,12 @@
 package com.redis.enterprise.rest;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.hc.core5.util.Asserts;
+import org.springframework.util.unit.DataSize;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -14,18 +16,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Database {
 
-	public static final long DEFAULT_MEMORY = 520428800;
-	public static final int DEFAULT_CLUSTER_SHARD_COUNT = 3;
-	public static final String[] DEFAULT_SHARD_KEY_REGEXES = new String[] { ".*\\{(?<tag>.*)\\}.*", "(?<tag>.*)" };
-
 	private Long uid;
 	private String name;
-	private Boolean replication;
-	private Boolean sharding;
-	private long memory = DEFAULT_MEMORY;
+	private boolean replication;
+	private boolean sharding;
+	private long memory;
 	private Integer port;
 	private String type;
-	private Boolean ossCluster;
+	private boolean ossCluster;
 	private ProxyPolicy proxyPolicy;
 	private IPType ossClusterAPIPreferredIPType;
 	private List<Regex> shardKeyRegex;
@@ -33,11 +31,31 @@ public class Database {
 	private ShardPlacement shardPlacement;
 	private List<ModuleConfig> moduleConfigs;
 
+	private Database() {
+	}
+
+	private Database(Builder builder) {
+		this.uid = builder.uid;
+		this.name = builder.name;
+		this.replication = builder.replication;
+		this.sharding = builder.sharding;
+		this.memory = builder.memory.toBytes();
+		this.port = builder.port;
+		this.type = builder.type;
+		this.ossCluster = builder.ossCluster;
+		this.proxyPolicy = builder.proxyPolicy;
+		this.ossClusterAPIPreferredIPType = builder.ossClusterAPIPreferredIPType;
+		this.shardKeyRegex = builder.shardKeyRegex;
+		this.shardCount = builder.shardCount;
+		this.shardPlacement = builder.shardPlacement;
+		this.moduleConfigs = builder.moduleConfigs;
+	}
+
 	public Long getUid() {
 		return uid;
 	}
 
-	public void setUid(Long uid) {
+	public void setUid(long uid) {
 		this.uid = uid;
 	}
 
@@ -49,7 +67,7 @@ public class Database {
 		this.name = name;
 	}
 
-	public Boolean getReplication() {
+	public boolean getReplication() {
 		return replication;
 	}
 
@@ -57,7 +75,7 @@ public class Database {
 		this.replication = replication;
 	}
 
-	public Boolean getSharding() {
+	public boolean getSharding() {
 		return sharding;
 	}
 
@@ -91,19 +109,12 @@ public class Database {
 	}
 
 	@JsonProperty("oss_cluster")
-	public Boolean getOssCluster() {
+	public boolean getOssCluster() {
 		return ossCluster;
 	}
 
 	public void setOssCluster(boolean ossCluster) {
 		this.ossCluster = ossCluster;
-		if (ossCluster) {
-			setProxyPolicy(ProxyPolicy.ALL_MASTER_SHARDS);
-			setOssClusterAPIPreferredIPType(IPType.EXTERNAL);
-			if (shardCount == null || shardCount < 2) {
-				setShardCount(DEFAULT_CLUSTER_SHARD_COUNT);
-			}
-		}
 	}
 
 	@JsonProperty("proxy_policy")
@@ -139,12 +150,7 @@ public class Database {
 	}
 
 	public void setShardCount(int shardCount) {
-		Asserts.check(shardCount > 0, "Shard count must be strictly positive");
 		this.shardCount = shardCount;
-		if (shardCount > 1) {
-			this.sharding = true;
-			this.shardKeyRegex = Stream.of(DEFAULT_SHARD_KEY_REGEXES).map(Regex::new).collect(Collectors.toList());
-		}
 	}
 
 	@JsonProperty("shards_placement")
@@ -252,5 +258,120 @@ public class Database {
 			this.regex = regex;
 		}
 
+	}
+
+	public static Builder name(String name) {
+		return new Builder().name(name);
+	}
+
+	public static final class Builder {
+
+		public static final long DEFAULT_MEMORY_MB = 100;
+		public static final int DEFAULT_CLUSTER_SHARD_COUNT = 3;
+		public static final String[] DEFAULT_SHARD_KEY_REGEXES = new String[] { ".*\\{(?<tag>.*)\\}.*", "(?<tag>.*)" };
+
+		private Long uid;
+		private String name;
+		private boolean replication;
+		private boolean sharding;
+		private DataSize memory = DataSize.ofMegabytes(DEFAULT_MEMORY_MB);
+		private Integer port;
+		private String type;
+		private boolean ossCluster;
+		private ProxyPolicy proxyPolicy;
+		private IPType ossClusterAPIPreferredIPType;
+		private List<Regex> shardKeyRegex = Collections.emptyList();
+		private Integer shardCount;
+		private ShardPlacement shardPlacement;
+		private List<ModuleConfig> moduleConfigs = Collections.emptyList();
+
+		private Builder() {
+		}
+
+		public Builder uid(Long uid) {
+			this.uid = uid;
+			return this;
+		}
+
+		public Builder name(String name) {
+			this.name = name;
+			return this;
+		}
+
+		public Builder replication(boolean replication) {
+			this.replication = replication;
+			return this;
+		}
+
+		public Builder sharding(boolean sharding) {
+			this.sharding = sharding;
+			return this;
+		}
+
+		public Builder memory(DataSize memory) {
+			this.memory = memory;
+			return this;
+		}
+
+		public Builder port(int port) {
+			this.port = port;
+			return this;
+		}
+
+		public Builder type(String type) {
+			this.type = type;
+			return this;
+		}
+
+		public Builder ossCluster(boolean ossCluster) {
+			this.ossCluster = ossCluster;
+			if (ossCluster) {
+				proxyPolicy(ProxyPolicy.ALL_MASTER_SHARDS);
+				ossClusterAPIPreferredIPType(IPType.EXTERNAL);
+				if (shardCount == null || shardCount < 2) {
+					shardCount(DEFAULT_CLUSTER_SHARD_COUNT);
+				}
+			}
+			return this;
+		}
+
+		public Builder proxyPolicy(ProxyPolicy proxyPolicy) {
+			this.proxyPolicy = proxyPolicy;
+			return this;
+		}
+
+		public Builder ossClusterAPIPreferredIPType(IPType ossClusterAPIPreferredIPType) {
+			this.ossClusterAPIPreferredIPType = ossClusterAPIPreferredIPType;
+			return this;
+		}
+
+		public Builder shardKeyRegex(List<Regex> shardKeyRegex) {
+			this.shardKeyRegex = shardKeyRegex;
+			return this;
+		}
+
+		public Builder shardCount(int shardCount) {
+			Asserts.check(shardCount > 0, "Shard count must be strictly positive");
+			this.shardCount = shardCount;
+			if (shardCount > 1) {
+				this.sharding = true;
+				this.shardKeyRegex = Stream.of(DEFAULT_SHARD_KEY_REGEXES).map(Regex::new).collect(Collectors.toList());
+			}
+			return this;
+		}
+
+		public Builder shardPlacement(ShardPlacement shardPlacement) {
+			this.shardPlacement = shardPlacement;
+			return this;
+		}
+
+		public Builder moduleConfigs(List<ModuleConfig> moduleConfigs) {
+			this.moduleConfigs = moduleConfigs;
+			return this;
+		}
+
+		public Database build() {
+			return new Database(this);
+		}
 	}
 }

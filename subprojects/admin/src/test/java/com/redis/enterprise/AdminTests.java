@@ -62,10 +62,7 @@ class AdminTests {
 	@Test
 	void createDatabase() throws ParseException, GeneralSecurityException, IOException {
 		String databaseName = "CreateTestDB";
-		Database request = new Database();
-		request.setName(databaseName);
-		request.setOssCluster(true);
-		admin.createDatabase(request);
+		admin.createDatabase(Database.name(databaseName).ossCluster(true).build());
 		Stream<Database> stream = admin.getDatabases().stream().filter(d -> d.getName().equals(databaseName));
 		Assertions.assertEquals(1, stream.count());
 	}
@@ -73,9 +70,7 @@ class AdminTests {
 	@Test
 	void deleteDatabase() throws ParseException, GeneralSecurityException, IOException {
 		String databaseName = "DeleteTestDB";
-		Database request = new Database();
-		request.setName(databaseName);
-		Database database = admin.createDatabase(request);
+		Database database = admin.createDatabase(Database.name(databaseName).build());
 		admin.deleteDatabase(database.getUid());
 		Awaitility.await().until(() -> admin.getDatabases().stream().noneMatch(d -> d.getUid() == database.getUid()));
 	}

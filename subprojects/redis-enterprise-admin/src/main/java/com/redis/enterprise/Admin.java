@@ -132,19 +132,19 @@ public class Admin implements AutoCloseable {
 		}
 	}
 
-	private <T> T get(String path, Class<T> type) throws ParseException, IOException {
+	private <T> T get(String path, Class<T> type) throws IOException {
 		return get(path, SimpleType.constructUnsafe(type));
 	}
 
-	private <T> T get(String path, JavaType type) throws ParseException, IOException {
+	private <T> T get(String path, JavaType type) throws IOException {
 		return read(header(new HttpGet(uri(path))), type, HttpStatus.SC_OK);
 	}
 
-	private <T> T delete(String path, Class<T> type) throws ParseException, IOException {
+	private <T> T delete(String path, Class<T> type) throws IOException {
 		return delete(path, SimpleType.constructUnsafe(type));
 	}
 
-	private <T> T delete(String path, JavaType type) throws ParseException, IOException {
+	private <T> T delete(String path, JavaType type) throws IOException {
 		return read(header(new HttpDelete(uri(path))), type, HttpStatus.SC_OK);
 	}
 
@@ -153,11 +153,11 @@ public class Admin implements AutoCloseable {
 		return request;
 	}
 
-	private <T> T post(String path, Object request, Class<T> responseType) throws ParseException, IOException {
+	private <T> T post(String path, Object request, Class<T> responseType) throws IOException {
 		return post(path, request, SimpleType.constructUnsafe(responseType));
 	}
 
-	private <T> T post(String path, Object request, JavaType responseType) throws ParseException, IOException {
+	private <T> T post(String path, Object request, JavaType responseType) throws IOException {
 		HttpPost post = new HttpPost(uri(path));
 		String json = objectMapper.writeValueAsString(request);
 		log.debug("POST {}", json);
@@ -165,7 +165,7 @@ public class Admin implements AutoCloseable {
 		return read(header(post), responseType, HttpStatus.SC_OK);
 	}
 
-	private <T> T read(ClassicHttpRequest request, JavaType type, int successCode) throws IOException, ParseException {
+	private <T> T read(ClassicHttpRequest request, JavaType type, int successCode) throws IOException {
 		HttpHost target = new HttpHost(protocol, host, port);
 		HttpClientContext localContext = HttpClientContext.create();
 		if (credentials != null) {
@@ -174,19 +174,33 @@ public class Admin implements AutoCloseable {
 			localContext.resetAuthExchange(target, basicAuth);
 		}
 		CloseableHttpResponse response = client.execute(request, localContext);
-		String json = EntityUtils.toString(response.getEntity());
+		String json;
+		try {
+			json = EntityUtils.toString(response.getEntity());
+		} catch (ParseException e) {
+			throw new HttpResponseParsingException("Could not parse response", e);
+		}
 		if (response.getCode() == successCode) {
 			return objectMapper.readValue(json, type);
 		}
 		throw new HttpResponseException(response.getCode(), response.getReasonPhrase() + " " + json);
 	}
 
-	public List<InstalledModule> getModules() throws ParseException, IOException {
+	private static class HttpResponseParsingException extends IOException {
+
+		private static final long serialVersionUID = 1L;
+
+		public HttpResponseParsingException(String message, Throwable cause) {
+			super(message, cause);
+		}
+	}
+
+	public List<InstalledModule> getModules() throws IOException {
 		return get(v1(MODULES),
 				objectMapper.getTypeFactory().constructCollectionType(List.class, InstalledModule.class));
 	}
 
-	public Database createDatabase(Database database) throws ParseException, IOException {
+	public Database createDatabase(Database database) throws IOException {
 		Map<String, InstalledModule> installedModules = new HashMap<>();
 		for (InstalledModule module : getModules()) {
 			installedModules.put(module.getName(), module);
@@ -212,7 +226,7 @@ public class Admin implements AutoCloseable {
 		return response;
 	}
 
-	public List<Database> getDatabases() throws ParseException, IOException {
+	public List<Database> getDatabases() throws IOException {
 		return get(v1(BDBS), objectMapper.getTypeFactory().constructCollectionType(List.class, Database.class));
 	}
 
@@ -231,8 +245,7 @@ public class Admin implements AutoCloseable {
 		});
 	}
 
-	public ModuleInstallResponse installModule(String filename, InputStream inputStream)
-			throws ParseException, IOException {
+	public ModuleInstallResponse installModule(String filename, InputStream inputStream) throws IOException {
 		HttpPost post = new HttpPost(uri(v2(MODULES)));
 		MultipartEntityBuilder builder = MultipartEntityBuilder.create();
 		builder.setMode(HttpMultipartMode.STRICT);
@@ -261,15 +274,15 @@ public class Admin implements AutoCloseable {
 
 	}
 
-	private Bootstrap getBootstrap() throws ParseException, IOException {
+	private Bootstrap getBootstrap() throws IOException {
 		return get(v1(BOOTSTRAP), Bootstrap.class);
 	}
 
-	private Action getAction(String uid) throws ParseException, IOException {
+	private Action getAction(String uid) throws IOException {
 		return get(v1(ACTIONS, uid), Action.class);
 	}
 
-	public CommandResponse executeCommand(long bdb, Command command) throws ParseException, IOException {
+	public CommandResponse executeCommand(long bdb, Command command) throws IOException {
 		return post(v1(BDBS, String.valueOf(bdb), COMMAND), command, CommandResponse.class);
 	}
 

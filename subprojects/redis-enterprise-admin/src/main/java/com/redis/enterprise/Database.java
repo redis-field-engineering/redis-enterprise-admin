@@ -1,8 +1,9 @@
-package com.redis.enterprise.rest;
+package com.redis.enterprise;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.apache.hc.core5.util.Asserts;
@@ -67,7 +68,7 @@ public class Database {
 		this.name = name;
 	}
 
-	public boolean getReplication() {
+	public boolean isReplication() {
 		return replication;
 	}
 
@@ -75,7 +76,7 @@ public class Database {
 		this.replication = replication;
 	}
 
-	public boolean getSharding() {
+	public boolean isSharding() {
 		return sharding;
 	}
 
@@ -109,7 +110,7 @@ public class Database {
 	}
 
 	@JsonProperty("oss_cluster")
-	public boolean getOssCluster() {
+	public boolean isOssCluster() {
 		return ossCluster;
 	}
 
@@ -169,6 +170,29 @@ public class Database {
 
 	public void setModules(List<ModuleConfig> modules) {
 		this.modules = modules;
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(memory, modules, name, ossCluster, ossClusterAPIPreferredIPType, port, proxyPolicy,
+				replication, shardCount, shardKeyRegex, shardPlacement, sharding, type, uid);
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Database other = (Database) obj;
+		return memory == other.memory && Objects.equals(modules, other.modules) && Objects.equals(name, other.name)
+				&& ossCluster == other.ossCluster && ossClusterAPIPreferredIPType == other.ossClusterAPIPreferredIPType
+				&& Objects.equals(port, other.port) && proxyPolicy == other.proxyPolicy
+				&& replication == other.replication && Objects.equals(shardCount, other.shardCount)
+				&& Objects.equals(shardKeyRegex, other.shardKeyRegex) && shardPlacement == other.shardPlacement
+				&& sharding == other.sharding && Objects.equals(type, other.type) && Objects.equals(uid, other.uid);
 	}
 
 	public enum IPType {
@@ -368,13 +392,13 @@ public class Database {
 			return this;
 		}
 
-		public Builder module(Module module) {
-			this.moduleConfigs.add(new ModuleConfig(module.getName()));
+		public Builder module(RedisModule module) {
+			this.moduleConfigs.add(new ModuleConfig(module.getModuleName()));
 			return this;
 		}
 
-		public Builder modules(Module... modules) {
-			for (Module module : modules) {
+		public Builder modules(RedisModule... modules) {
+			for (RedisModule module : modules) {
 				module(module);
 			}
 			return this;
@@ -394,20 +418,5 @@ public class Database {
 			return new Database(this);
 		}
 
-		public enum Module {
-
-			BLOOM("bf"), GEARS("rg"), GRAPH("graph"), JSON("ReJSON"), SEARCH("search"), TIMESERIES("timeseries");
-
-			private final String name;
-
-			Module(String name) {
-				this.name = name;
-			}
-
-			public String getName() {
-				return name;
-			}
-
-		}
 	}
 }

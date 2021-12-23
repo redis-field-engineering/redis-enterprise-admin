@@ -50,15 +50,12 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.type.CollectionType;
 import com.fasterxml.jackson.databind.type.SimpleType;
+import com.redis.enterprise.Database.ModuleConfig;
 import com.redis.enterprise.rest.Action;
 import com.redis.enterprise.rest.Bootstrap;
-import com.redis.enterprise.rest.Command;
 import com.redis.enterprise.rest.CommandResponse;
-import com.redis.enterprise.rest.Database;
-import com.redis.enterprise.rest.Database.ModuleConfig;
-import com.redis.enterprise.rest.Module;
+import com.redis.enterprise.rest.InstalledModule;
 import com.redis.enterprise.rest.ModuleInstallResponse;
 
 public class Admin implements AutoCloseable {
@@ -163,6 +160,7 @@ public class Admin implements AutoCloseable {
 	private <T> T post(String path, Object request, JavaType responseType) throws ParseException, IOException {
 		HttpPost post = new HttpPost(uri(path));
 		String json = objectMapper.writeValueAsString(request);
+		log.debug("POST {}", json);
 		post.setEntity(new StringEntity(json));
 		return read(header(post), responseType, HttpStatus.SC_OK);
 	}
@@ -183,14 +181,14 @@ public class Admin implements AutoCloseable {
 		throw new HttpResponseException(response.getCode(), response.getReasonPhrase() + " " + json);
 	}
 
-	public List<Module> getModules() throws ParseException, IOException {
-		CollectionType type = objectMapper.getTypeFactory().constructCollectionType(List.class, Module.class);
-		return get(v1(MODULES), type);
+	public List<InstalledModule> getModules() throws ParseException, IOException {
+		return get(v1(MODULES),
+				objectMapper.getTypeFactory().constructCollectionType(List.class, InstalledModule.class));
 	}
 
 	public Database createDatabase(Database database) throws ParseException, IOException {
-		Map<String, Module> installedModules = new HashMap<>();
-		for (Module module : getModules()) {
+		Map<String, InstalledModule> installedModules = new HashMap<>();
+		for (InstalledModule module : getModules()) {
 			installedModules.put(module.getName(), module);
 		}
 		for (ModuleConfig moduleConfig : database.getModules()) {
@@ -201,7 +199,7 @@ public class Admin implements AutoCloseable {
 		}
 		Database response = post(v1(BDBS), database, Database.class);
 		long uid = response.getUid();
-		Awaitility.await().until(() -> {
+		Awaitility.await().pollInterval(Duration.ofSeconds(1)).until(() -> {
 			Command command = new Command();
 			command.setCommand("PING");
 			try {
@@ -215,12 +213,11 @@ public class Admin implements AutoCloseable {
 	}
 
 	public List<Database> getDatabases() throws ParseException, IOException {
-		CollectionType type = objectMapper.getTypeFactory().constructCollectionType(List.class, Database.class);
-		return get(v1(BDBS), type);
+		return get(v1(BDBS), objectMapper.getTypeFactory().constructCollectionType(List.class, Database.class));
 	}
 
 	public void deleteDatabase(long uid) {
-		Awaitility.await().timeout(Duration.ofSeconds(30)).pollInterval(Duration.ofSeconds(1)).until(() -> {
+		Awaitility.await().pollInterval(Duration.ofSeconds(1)).until(() -> {
 			try {
 				delete(v1(BDBS, String.valueOf(uid)), Database.class);
 				return true;
@@ -246,7 +243,7 @@ public class Admin implements AutoCloseable {
 		ModuleInstallResponse response = read(post, SimpleType.constructUnsafe(ModuleInstallResponse.class),
 				HttpStatus.SC_ACCEPTED);
 		baos.close();
-		Awaitility.await().timeout(Duration.ofSeconds(30)).pollInterval(Duration.ofSeconds(3)).until(() -> {
+		Awaitility.await().timeout(Duration.ofMinutes(1)).pollInterval(Duration.ofSeconds(1)).until(() -> {
 			log.info("Checking status of action {}", response.getActionUid());
 			Action status = getAction(response.getActionUid());
 			if ("completed".equals(status.getStatus())) {
@@ -259,7 +256,7 @@ public class Admin implements AutoCloseable {
 	}
 
 	public void waitForBoostrap() {
-		Awaitility.await().pollInterval(Duration.ofSeconds(3)).timeout(Duration.ofMinutes(1))
+		Awaitility.await().pollInterval(Duration.ofSeconds(1)).timeout(Duration.ofMinutes(1))
 				.until(() -> "idle".equals(getBootstrap().getStatus().getState()));
 
 	}
@@ -268,7 +265,7 @@ public class Admin implements AutoCloseable {
 		return get(v1(BOOTSTRAP), Bootstrap.class);
 	}
 
-	public Action getAction(String uid) throws ParseException, IOException {
+	private Action getAction(String uid) throws ParseException, IOException {
 		return get(v1(ACTIONS, uid), Action.class);
 	}
 

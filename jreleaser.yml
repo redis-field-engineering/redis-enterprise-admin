@@ -92,7 +92,7 @@ checksum:
   files: false
 
 distributions:
-  admin:
+  redis-enterprise-admin:
     artifacts:
       - path: subprojects/{{distributionName}}/build/distributions/{{distributionName}}-{{projectVersion}}.zip
         transform: '{{distributionName}}/{{distributionName}}-{{projectEffectiveVersion}}.zip'

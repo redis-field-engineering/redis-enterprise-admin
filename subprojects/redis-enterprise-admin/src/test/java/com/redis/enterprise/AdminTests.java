@@ -23,11 +23,12 @@ import org.springframework.util.unit.DataSize;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import com.redis.enterprise.rest.Database;
-import com.redis.enterprise.rest.Database.Builder.Module;
 import com.redis.enterprise.rest.ModuleInstallResponse;
 import com.redis.testcontainers.RedisEnterpriseContainer;
-import com.redis.testcontainers.RedisEnterpriseContainer.RedisModule;
+
+import io.lettuce.core.RedisURI;
+import io.lettuce.core.cluster.RedisClusterClient;
+import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
 
 @Testcontainers
 @TestInstance(Lifecycle.PER_CLASS)
@@ -65,18 +66,35 @@ class AdminTests {
 	@Test
 	void createDatabase() throws ParseException, GeneralSecurityException, IOException {
 		String databaseName = "CreateDBTest";
-		admin.createDatabase(Database.name(databaseName).ossCluster(true).build());
+		admin.createDatabase(Database.name(databaseName).build());
 		Stream<Database> stream = admin.getDatabases().stream().filter(d -> d.getName().equals(databaseName));
 		Assertions.assertEquals(1, stream.count());
 	}
 
 	@Test
-	void createSearchDatabase() throws ParseException, IOException {
-		String databaseName = "CreateSearchDBTest";
-		admin.createDatabase(Database.name(databaseName).module(Module.SEARCH).build());
+	void createClusterDatabase() throws ParseException, GeneralSecurityException, IOException {
+		String databaseName = "CreateClusterDBTest";
+		admin.createDatabase(
+				Database.name(databaseName).ossCluster(true).port(RedisEnterpriseContainer.ENDPOINT_PORT).build());
 		List<Database> databases = admin.getDatabases();
 		Assertions.assertEquals(1, databases.size());
-		Assertions.assertEquals(Module.SEARCH.getName(), databases.get(0).getModules().get(0).getName());
+		Assertions.assertEquals(databaseName, databases.get(0).getName());
+		Database database = databases.get(0);
+		RedisClusterClient client = RedisClusterClient.create(RedisURI.create(server.getHost(), database.getPort()));
+		try (StatefulRedisClusterConnection<String, String> connection = client.connect()) {
+			Assertions.assertEquals("PONG", connection.sync().ping());
+		}
+		client.shutdown();
+		client.getResources().shutdown();
+	}
+
+	@Test
+	void createSearchDatabase() throws ParseException, IOException {
+		String databaseName = "CreateSearchDBTest";
+		admin.createDatabase(Database.name(databaseName).module(RedisModule.SEARCH).build());
+		List<Database> databases = admin.getDatabases();
+		Assertions.assertEquals(1, databases.size());
+		Assertions.assertEquals(RedisModule.SEARCH.getModuleName(), databases.get(0).getModules().get(0).getName());
 	}
 
 	@Test
@@ -95,12 +113,12 @@ class AdminTests {
 			ModuleInstallResponse response = admin.installModule(gearsModuleFile, zipInputStream);
 			log.info("Installed module {}, action ID: {}", gearsModuleFile, response.getActionUid());
 			Assertions.assertTrue(
-					admin.getModules().stream().anyMatch(m -> m.getName().equals(RedisModule.GEARS.getName())));
+					admin.getModules().stream().anyMatch(m -> m.getName().equals(RedisModule.GEARS.getModuleName())));
 		}
-		admin.createDatabase(Database.name("ModuleInstallDBTest").module(Module.SEARCH).build());
+		admin.createDatabase(Database.name("ModuleInstallDBTest").module(RedisModule.SEARCH).build());
 		List<Database> databases = admin.getDatabases();
 		Assertions.assertEquals(1, databases.size());
-		Assertions.assertEquals(Module.SEARCH.getName(), databases.get(0).getModules().get(0).getName());
+		Assertions.assertEquals(RedisModule.SEARCH.getModuleName(), databases.get(0).getModules().get(0).getName());
 	}
 
 	@Test

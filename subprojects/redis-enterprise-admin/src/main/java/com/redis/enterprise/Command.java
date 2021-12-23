@@ -1,4 +1,4 @@
-package com.redis.enterprise.rest;
+package com.redis.enterprise;
 
 import java.util.ArrayList;
 import java.util.List;

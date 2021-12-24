@@ -213,16 +213,8 @@ public class Admin implements AutoCloseable {
 		}
 		Database response = post(v1(BDBS), database, Database.class);
 		long uid = response.getUid();
-		Awaitility.await().pollInterval(Duration.ofSeconds(1)).until(() -> {
-			Command command = new Command();
-			command.setCommand("PING");
-			try {
-				return executeCommand(uid, command).getResponse().asBoolean();
-			} catch (HttpResponseException e) {
-				log.info("PING unsuccessful, retrying...");
-				return false;
-			}
-		});
+		Awaitility.await().pollInterval(Duration.ofSeconds(1)).ignoreExceptions()
+				.until(() -> executeCommand(uid, new Command("PING")).getResponse().asBoolean());
 		return response;
 	}
 
@@ -256,20 +248,13 @@ public class Admin implements AutoCloseable {
 		ModuleInstallResponse response = read(post, SimpleType.constructUnsafe(ModuleInstallResponse.class),
 				HttpStatus.SC_ACCEPTED);
 		baos.close();
-		Awaitility.await().timeout(Duration.ofMinutes(1)).pollInterval(Duration.ofSeconds(1)).until(() -> {
-			log.info("Checking status of action {}", response.getActionUid());
-			Action status = getAction(response.getActionUid());
-			if ("completed".equals(status.getStatus())) {
-				return true;
-			}
-			log.info("Action {} status: {}", response.getActionUid(), status.getStatus());
-			return false;
-		});
+		Awaitility.await().timeout(Duration.ofMinutes(1)).pollInterval(Duration.ofSeconds(1)).ignoreExceptions()
+				.until(() -> "completed".equals(getAction(response.getActionUid()).getStatus()));
 		return response;
 	}
 
 	public void waitForBoostrap() {
-		Awaitility.await().pollInterval(Duration.ofSeconds(1)).timeout(Duration.ofMinutes(1))
+		Awaitility.await().timeout(Duration.ofMinutes(1)).pollInterval(Duration.ofSeconds(1)).ignoreExceptions()
 				.until(() -> "idle".equals(getBootstrap().getStatus().getState()));
 
 	}

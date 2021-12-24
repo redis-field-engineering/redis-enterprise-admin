@@ -11,6 +11,13 @@ public class Command {
 	private String command;
 	private List<String> args = new ArrayList<>();
 
+	public Command() {
+	}
+
+	public Command(String command) {
+		this.command = command;
+	}
+
 	public String getCommand() {
 		return command;
 	}

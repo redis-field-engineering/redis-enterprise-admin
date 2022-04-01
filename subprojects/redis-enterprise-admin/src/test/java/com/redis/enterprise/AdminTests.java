@@ -37,7 +37,8 @@ class AdminTests {
 	private static final Logger log = LoggerFactory.getLogger(AdminTests.class);
 
 	@Container
-	private static RedisEnterpriseContainer server = new RedisEnterpriseContainer();
+	private static RedisEnterpriseContainer server = new RedisEnterpriseContainer(
+			RedisEnterpriseContainer.DEFAULT_IMAGE_NAME.withTag(RedisEnterpriseContainer.DEFAULT_TAG));
 
 	private static Admin admin;
 
@@ -74,8 +75,8 @@ class AdminTests {
 	@Test
 	void createClusterDatabase() throws ParseException, GeneralSecurityException, IOException {
 		String databaseName = "CreateClusterDBTest";
-		admin.createDatabase(
-				Database.name(databaseName).ossCluster(true).port(RedisEnterpriseContainer.ENDPOINT_PORT).build());
+		admin.createDatabase(Database.name(databaseName).ossCluster(true)
+				.port(RedisEnterpriseContainer.DEFAULT_DATABASE_PORT).build());
 		List<Database> databases = admin.getDatabases();
 		Assertions.assertEquals(1, databases.size());
 		Assertions.assertEquals(databaseName, databases.get(0).getName());

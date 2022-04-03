@@ -168,11 +168,9 @@ public class Admin implements AutoCloseable {
 	private <T> T read(ClassicHttpRequest request, JavaType type, int successCode) throws IOException {
 		HttpHost target = new HttpHost(protocol, host, port);
 		HttpClientContext localContext = HttpClientContext.create();
-		if (credentials != null) {
-			BasicScheme basicAuth = new BasicScheme();
-			basicAuth.initPreemptive(credentials);
-			localContext.resetAuthExchange(target, basicAuth);
-		}
+		BasicScheme basicAuth = new BasicScheme();
+		basicAuth.initPreemptive(credentials);
+		localContext.resetAuthExchange(target, basicAuth);
 		CloseableHttpResponse response = client.execute(request, localContext);
 		String json;
 		try {

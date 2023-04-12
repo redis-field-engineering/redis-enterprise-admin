@@ -17,6 +17,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
+import org.junit.jupiter.api.condition.EnabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.unit.DataSize;
@@ -32,6 +34,7 @@ import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
 
 @Testcontainers
 @TestInstance(Lifecycle.PER_CLASS)
+@EnabledOnOs(value = OS.LINUX)
 class AdminTests {
 
 	private static final Logger log = LoggerFactory.getLogger(AdminTests.class);

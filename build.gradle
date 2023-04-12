@@ -2,25 +2,49 @@ config {
     info {
         description = 'Redis Enterprise Admin'
         inceptionYear = '2021'
+        vendor = 'Redis'
         tags = ['redis', 'enterprise', 'admin']
+
         links {
             website      = "https://github.com/redis-developer/${project.rootProject.name}"
             issueTracker = "https://github.com/redis-developer/${project.rootProject.name}/issues"
             scm          = "https://github.com/redis-developer/${project.rootProject.name}.git"
         }
+
         scm {
             url                 = "https://github.com/redis-developer/${project.rootProject.name}"
             connection          = "scm:git:https://github.com/redis-developer/${project.rootProject.name}.git"
             developerConnection = "scm:git:git@github.com:redis-developer/${project.rootProject.name}.git"
         }
+
         specification {
             enabled = true
         }
+
         implementation {
             enabled = true
         }
+        
+        people {
+            person {
+                id    = 'jruaux'
+                name  = 'Julien Ruaux'
+                roles = ['developer', 'author']
+            }
+        }
     }
 
+    docs {
+        javadoc {
+            autoLinks {
+                enabled = false
+            }
+        }
+        sourceHtml {
+            enabled = false
+        }
+    }
+    
     licensing {
         enabled = false
         licenses {
@@ -30,29 +54,26 @@ config {
         }
     }
 
-    docs {
-        javadoc {
-            options {
-                autoLinks {
-                    enabled = false
-                }
-            }
-            aggregate {
-                enabled = false
-            }
+    coverage {
+        jacoco {
+            enabled = true
+            toolVersion = jacocoVersion
         }
     }
 }
 
 allprojects {
     repositories {
-        gradlePluginPortal()
-        mavenCentral()
         mavenLocal()
+        gradlePluginPortal()
     }
 
     tasks.withType(GenerateModuleMetadata) {
         enabled = false
+    }
+
+    tasks.withType(JavaCompile) {
+        options.encoding = 'UTF-8'
     }
 }
 
@@ -61,24 +82,43 @@ subprojects {
         info {
             description = project.project_description
         }
-		coverage {
-		    jacoco {
-		        toolVersion = '0.8.8'
-		    }
-		}
+        coverage {
+            jacoco {
+		        toolVersion = jacocoVersion
+            }
+        }
     }
+    
+    license {
+        exclude('build/**')
+    }
+
     test {
         useJUnitPlatform()
     }
+
     bootJar {
         enabled = false
     }
+
     jar {
         enabled = true
         archiveClassifier = ''
     }
 
-    sourceCompatibility = 8
-    targetCompatibility = 8
-
+    compileJava {
+        options.release = 8
+    }
+    
+    configurations {
+        all*.exclude module: 'spring-boot-starter-logging'
+    }
+    
+    configurations.all {
+        resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+            if (details.requested.name == 'lettuce-core' ) {
+                details.useVersion lettuceVersion
+            }
+        }
+    }
 }

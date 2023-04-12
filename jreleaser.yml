@@ -2,7 +2,8 @@ project:
   name: redis-enterprise-admin
   description: Redis Enterprise Admin
   longDescription: Java admin client for Redis Enterprise
-  website: https://github.com/redis-field-engineering/redis-enterprise-admin
+  links:
+    homepage: https://{{repoHost}}/{{repoOwner}}/{{repoName}}
   authors:
     - Julien Ruaux
   license: Apache-2.0
@@ -10,8 +11,7 @@ project:
     groupId: com.redis
     version: 8
     multiProject: true
-  extraProperties:
-    inceptionYear: 2020
+  inceptionYear: 2020
   tags:
     - 'redis'
     - 'enterprise'
@@ -24,7 +24,6 @@ release:
     changelog:
       formatted: ALWAYS
       preset: conventional-commits
-      format: '- {{commitShortHash}} {{commitTitle}}'
       contributors:
         enabled: false
       labelers:
@@ -47,12 +46,26 @@ release:
       replacers:
         - search: 'deps: '
 
-distributions:
-  redis-enterprise-admin:
-    artifacts:
-      - path: subprojects/{{distributionName}}/build/distributions/{{distributionName}}-{{projectVersion}}.zip
-        transform: '{{distributionName}}/{{distributionName}}-{{projectEffectiveVersion}}.zip'
+signing:
+  active: ALWAYS
+  armored: true
+
+deploy:
+  maven:
+    pomchecker:
+      version: 1.7.0
+    nexus2:
+      maven-central:
+        active: RELEASE
+        url: https://s01.oss.sonatype.org/service/local
+        closeRepository: true
+        releaseRepository: true
+        stagingRepositories:
+          - build/repos/local/release
 
 files:
   artifacts:
     - path: VERSION
+      extraProperties:
+        skipChecksum: true
+        skipSigning: true

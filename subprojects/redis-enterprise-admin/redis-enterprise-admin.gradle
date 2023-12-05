@@ -1,11 +1,17 @@
 dependencies {
     implementation group: 'commons-io', name: 'commons-io', version: commonsIOVersion
-    implementation 'com.fasterxml.jackson.core:jackson-databind'
-    implementation 'org.apache.httpcomponents.client5:httpclient5'
+    implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: jacksonVersion
+    implementation group: 'org.apache.httpcomponents.client5', name: 'httpclient5', version: httpclientVersion
     implementation group: 'org.awaitility', name: 'awaitility', version: awaitilityVersion
-    testImplementation 'org.slf4j:slf4j-api'
-    testImplementation 'org.slf4j:slf4j-simple'
-    testImplementation group: 'com.redis.testcontainers', name: 'testcontainers-redis-junit', version: testcontainersRedisVersion
+    testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-api', version: junitVersion
+    testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-params', version: junitVersion
+    testImplementation group: 'org.junit.jupiter', name: 'junit-jupiter-engine', version: junitVersion
+    testImplementation group: 'org.junit.platform', name: 'junit-platform-launcher', version: junitPlatformVersion
+    testImplementation group: 'org.testcontainers', name: 'junit-jupiter', version: testcontainersVersion
+    testImplementation(group: 'com.redis', name: 'testcontainers-redis', version: testcontainersRedisVersion) {
+        exclude group: 'com.redis', module: 'redis-enterprise-admin'
+    }
+    testImplementation group: 'com.redis', name: 'lettucemod', version: lettucemodVersion
 }
 
 eclipse {

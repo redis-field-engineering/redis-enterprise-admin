@@ -1,7 +1,6 @@
 package com.redis.enterprise;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.security.GeneralSecurityException;
 import java.util.List;
 import java.util.logging.Level;
@@ -25,7 +24,6 @@ import org.springframework.util.unit.DataSize;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import com.redis.enterprise.rest.ModuleInstallResponse;
 import com.redis.testcontainers.RedisEnterpriseContainer;
 
 import io.lettuce.core.RedisURI;
@@ -106,23 +104,6 @@ class AdminTests {
         Database database = admin.createDatabase(Database.name(databaseName).build());
         admin.deleteDatabase(database.getUid());
         Awaitility.await().until(() -> admin.getDatabases().stream().noneMatch(d -> d.getUid() == database.getUid()));
-    }
-
-    @Test
-    void installModule() throws IOException, ParseException {
-        String gearsModuleFile = "redisgears.linux-bionic-x64.1.0.6.zip";
-        try (InputStream zipInputStream = getClass().getClassLoader().getResourceAsStream(gearsModuleFile)) {
-            log.log(Level.INFO, "Installing module {0}", gearsModuleFile);
-            ModuleInstallResponse response = admin.installModule(gearsModuleFile, zipInputStream);
-            log.log(Level.INFO, "Installed module {0}, action ID: {1}",
-                    new Object[] { gearsModuleFile, response.getActionUid() });
-            Assertions.assertTrue(
-                    admin.getModules().stream().anyMatch(m -> m.getName().equals(RedisModule.GEARS.getModuleName())));
-        }
-        admin.createDatabase(Database.name("ModuleInstallDBTest").module(RedisModule.SEARCH).build());
-        List<Database> databases = admin.getDatabases();
-        Assertions.assertEquals(1, databases.size());
-        Assertions.assertEquals(RedisModule.SEARCH.getModuleName(), databases.get(0).getModules().get(0).getName());
     }
 
     @Test

@@ -2,7 +2,7 @@ package com.redis.enterprise;
 
 public enum RedisModule {
 
-	BLOOM("bf"), GEARS("rg"), GRAPH("graph"), JSON("ReJSON"), SEARCH("search"), TIMESERIES("timeseries");
+	BLOOM("bf"), GRAPH("graph"), JSON("ReJSON"), SEARCH("search"), TIMESERIES("timeseries");
 
 	private final String moduleName;
 

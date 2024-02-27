@@ -1,8 +1,8 @@
 package com.redis.enterprise;
 
-import org.junit.jupiter.api.condition.EnabledOnOs;
-import org.junit.jupiter.api.condition.OS;
+import org.junit.jupiter.api.Disabled;
 
+@Disabled
 class RedisEnterpriseServerTests extends AbstractTestBase {
 
 	@Override

@@ -35,81 +35,83 @@ import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
 @EnabledOnOs(value = OS.LINUX)
 class AdminTests {
 
-    private static final Logger log = Logger.getLogger(AdminTests.class.getName());
+	private static final Logger log = Logger.getLogger(AdminTests.class.getName());
 
-    @Container
-    private static RedisEnterpriseContainer server = new RedisEnterpriseContainer(
-            RedisEnterpriseContainer.DEFAULT_IMAGE_NAME.withTag(RedisEnterpriseContainer.DEFAULT_TAG));
+	@Container
+	private static RedisEnterpriseContainer server = new RedisEnterpriseContainer(
+			RedisEnterpriseContainer.DEFAULT_IMAGE_NAME.withTag(RedisEnterpriseContainer.DEFAULT_TAG));
 
-    private static Admin admin;
+	private static Admin admin;
 
-    @BeforeAll
-    static void setupAdmin() throws ParseException, GeneralSecurityException, IOException {
-        admin = new Admin(RedisEnterpriseContainer.ADMIN_USERNAME, RedisEnterpriseContainer.ADMIN_PASSWORD.toCharArray());
-        admin.setHost(server.getHost());
-    }
+	@BeforeAll
+	static void setupAdmin() throws ParseException, GeneralSecurityException, IOException {
+		admin = new Admin();
+		admin.withUserName(RedisEnterpriseContainer.ADMIN_USERNAME)
+				.withPassword(RedisEnterpriseContainer.ADMIN_PASSWORD).withHost(server.getHost());
+	}
 
-    @AfterAll
-    static void teardownAdmin() throws Exception {
-        admin.close();
-    }
+	@AfterAll
+	static void teardownAdmin() throws Exception {
+		admin.close();
+	}
 
-    @BeforeEach
-    void deleteAllDatabases() throws GeneralSecurityException, IOException, ParseException {
-        List<Database> databases = admin.getDatabases();
-        log.log(Level.INFO, "Deleting databases {0}", databases.stream().map(Database::getUid).collect(Collectors.toList()));
-        for (Database database : databases) {
-            admin.deleteDatabase(database.getUid());
-        }
-        Awaitility.await().until(() -> admin.getDatabases().isEmpty());
-    }
+	@BeforeEach
+	void deleteAllDatabases() throws GeneralSecurityException, IOException, ParseException {
+		List<Database> databases = admin.getDatabases();
+		log.log(Level.INFO, "Deleting databases {0}",
+				databases.stream().map(Database::getUid).collect(Collectors.toList()));
+		for (Database database : databases) {
+			admin.deleteDatabase(database.getUid());
+		}
+		Awaitility.await().until(() -> admin.getDatabases().isEmpty());
+	}
 
-    @Test
-    void createDatabase() throws ParseException, GeneralSecurityException, IOException {
-        String databaseName = "CreateDBTest";
-        admin.createDatabase(Database.name(databaseName).build());
-        Stream<Database> stream = admin.getDatabases().stream().filter(d -> d.getName().equals(databaseName));
-        Assertions.assertEquals(1, stream.count());
-    }
+	@Test
+	void createDatabase() throws ParseException, GeneralSecurityException, IOException {
+		String databaseName = "CreateDBTest";
+		admin.createDatabase(Database.builder().name(databaseName).build());
+		Stream<Database> stream = admin.getDatabases().stream().filter(d -> d.getName().equals(databaseName));
+		Assertions.assertEquals(1, stream.count());
+	}
 
-    @Test
-    void createClusterDatabase() throws ParseException, GeneralSecurityException, IOException {
-        String databaseName = "CreateClusterDBTest";
-        admin.createDatabase(
-                Database.name(databaseName).ossCluster(true).port(RedisEnterpriseContainer.DEFAULT_DATABASE_PORT).build());
-        List<Database> databases = admin.getDatabases();
-        Assertions.assertEquals(1, databases.size());
-        Assertions.assertEquals(databaseName, databases.get(0).getName());
-        Database database = databases.get(0);
-        RedisClusterClient client = RedisClusterClient.create(RedisURI.create(server.getHost(), database.getPort()));
-        try (StatefulRedisClusterConnection<String, String> connection = client.connect()) {
-            Assertions.assertEquals("PONG", connection.sync().ping());
-        }
-        client.shutdown();
-        client.getResources().shutdown();
-    }
+	@Test
+	void createClusterDatabase() throws ParseException, GeneralSecurityException, IOException {
+		String databaseName = "CreateClusterDBTest";
+		admin.createDatabase(Database.builder().name(databaseName).ossCluster(true)
+				.port(RedisEnterpriseContainer.DEFAULT_DATABASE_PORT).build());
+		List<Database> databases = admin.getDatabases();
+		Assertions.assertEquals(1, databases.size());
+		Assertions.assertEquals(databaseName, databases.get(0).getName());
+		Database database = databases.get(0);
+		RedisClusterClient client = RedisClusterClient.create(RedisURI.create(server.getHost(), database.getPort()));
+		try (StatefulRedisClusterConnection<String, String> connection = client.connect()) {
+			Assertions.assertEquals("PONG", connection.sync().ping());
+		}
+		client.shutdown();
+		client.getResources().shutdown();
+	}
 
-    @Test
-    void createSearchDatabase() throws ParseException, IOException {
-        String databaseName = "CreateSearchDBTest";
-        admin.createDatabase(Database.name(databaseName).module(RedisModule.SEARCH).build());
-        List<Database> databases = admin.getDatabases();
-        Assertions.assertEquals(1, databases.size());
-        Assertions.assertEquals(RedisModule.SEARCH.getModuleName(), databases.get(0).getModules().get(0).getName());
-    }
+	@Test
+	void createSearchDatabase() throws ParseException, IOException, GeneralSecurityException {
+		String databaseName = "CreateSearchDBTest";
+		admin.createDatabase(Database.builder().name(databaseName).module(RedisModule.SEARCH).build());
+		List<Database> databases = admin.getDatabases();
+		Assertions.assertEquals(1, databases.size());
+		Assertions.assertEquals(RedisModule.SEARCH.getModuleName(), databases.get(0).getModules().get(0).getName());
+	}
 
-    @Test
-    void deleteDatabase() throws ParseException, GeneralSecurityException, IOException {
-        String databaseName = "DeleteDBTest";
-        Database database = admin.createDatabase(Database.name(databaseName).build());
-        admin.deleteDatabase(database.getUid());
-        Awaitility.await().until(() -> admin.getDatabases().stream().noneMatch(d -> d.getUid() == database.getUid()));
-    }
+	@Test
+	void deleteDatabase() throws ParseException, GeneralSecurityException, IOException {
+		String databaseName = "DeleteDBTest";
+		Database database = admin.createDatabase(Database.builder().name(databaseName).build());
+		admin.deleteDatabase(database.getUid());
+		Awaitility.await().until(() -> admin.getDatabases().stream().noneMatch(d -> d.getUid() == database.getUid()));
+	}
 
-    @Test
-    void createDatabaseException() throws ParseException, IOException {
-        Assertions.assertThrows(HttpResponseException.class, () -> admin
-                .createDatabase(Database.name("DatabaseCreateExceptionTestDB").memory(DataSize.ofGigabytes(10)).build()));
-    }
+	@Test
+	void createDatabaseException() throws ParseException, IOException {
+		Assertions.assertThrows(HttpResponseException.class, () -> admin.createDatabase(
+				Database.builder().name("DatabaseCreateExceptionTestDB").memory(DataSize.ofGigabytes(10)).build()));
+	}
 
 }

@@ -17,11 +17,21 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Database {
 
+	public static final String DEFAULT_NAME = "redis-enterprise-admin-db";
+
+	public static final long DEFAULT_MEMORY_MB = 100;
+	public static final DataSize DEFAULT_MEMORY = DataSize.ofMegabytes(DEFAULT_MEMORY_MB);
+	public static final int DEFAULT_CLUSTER_SHARD_COUNT = 3;
+
+	public static List<String> defaultShardKeyRegexes() {
+		return Arrays.asList(".*\\{(?<tag>.*)\\}.*", "(?<tag>.*)");
+	}
+
 	private Long uid;
-	private String name;
+	private String name = DEFAULT_NAME;
 	private boolean replication;
 	private boolean sharding;
-	private long memory;
+	private long memory = DEFAULT_MEMORY.toBytes();
 	private Integer port;
 	private String type;
 	private boolean ossCluster;
@@ -32,7 +42,7 @@ public class Database {
 	private ShardPlacement shardPlacement;
 	private List<ModuleConfig> modules;
 
-	private Database() {
+	public Database() {
 	}
 
 	private Database(Builder builder) {
@@ -97,7 +107,11 @@ public class Database {
 		return port;
 	}
 
-	public void setPort(int port) {
+	/**
+	 * 
+	 * @param port the database port. Use null for auto-assigned by Redis Enterprise
+	 */
+	public void setPort(Integer port) {
 		this.port = port;
 	}
 
@@ -280,21 +294,17 @@ public class Database {
 
 	}
 
-	public static Builder name(String name) {
-		return new Builder().name(name);
+	public static Builder builder() {
+		return new Builder();
 	}
 
 	public static final class Builder {
 
-		public static final long DEFAULT_MEMORY_MB = 100;
-		public static final int DEFAULT_CLUSTER_SHARD_COUNT = 3;
-		public static final String[] DEFAULT_SHARD_KEY_REGEXES = new String[] { ".*\\{(?<tag>.*)\\}.*", "(?<tag>.*)" };
-
 		private Long uid;
-		private String name;
+		private String name = DEFAULT_NAME;
 		private boolean replication;
 		private boolean sharding;
-		private DataSize memory = DataSize.ofMegabytes(DEFAULT_MEMORY_MB);
+		private DataSize memory = DEFAULT_MEMORY;
 		private Integer port;
 		private String type;
 		private boolean ossCluster;
@@ -333,7 +343,7 @@ public class Database {
 			return this;
 		}
 
-		public Builder port(int port) {
+		public Builder port(Integer port) {
 			this.port = port;
 			return this;
 		}
@@ -382,7 +392,7 @@ public class Database {
 			this.shardCount = shardCount;
 			if (shardCount > 1) {
 				sharding(true);
-				shardKeyRegexes(DEFAULT_SHARD_KEY_REGEXES);
+				shardKeyRegexes(defaultShardKeyRegexes().toArray(new String[0]));
 			}
 			return this;
 		}

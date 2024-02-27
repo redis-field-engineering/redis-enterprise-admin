@@ -40,8 +40,6 @@ import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.ssl.SSLContexts;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
@@ -53,8 +51,6 @@ import com.redis.enterprise.rest.CommandResponse;
 import com.redis.enterprise.rest.InstalledModule;
 
 public class Admin implements AutoCloseable {
-
-	private static final Logger log = LoggerFactory.getLogger(Admin.class);
 
 	public static final String DEFAULT_USER_NAME = "admin@redis.com";
 	public static final String DEFAULT_PASSWORD = "redis123";
@@ -177,7 +173,6 @@ public class Admin implements AutoCloseable {
 			throws IOException, GeneralSecurityException {
 		HttpPost post = new HttpPost(uri(path));
 		String json = objectMapper.writeValueAsString(request);
-		log.debug("POST {}", json);
 		post.setEntity(new StringEntity(json));
 		return read(header(post), responseType, HttpStatus.SC_OK);
 	}
@@ -259,7 +254,6 @@ public class Admin implements AutoCloseable {
 				return true;
 			} catch (HttpResponseException e) {
 				if (e.getStatusCode() == HttpStatus.SC_CONFLICT) {
-					log.info("Could not delete database {}, retrying...", uid);
 					return false;
 				}
 				throw e;

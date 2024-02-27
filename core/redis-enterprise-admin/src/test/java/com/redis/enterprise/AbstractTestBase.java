@@ -3,9 +3,6 @@ package com.redis.enterprise;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.hc.client5.http.HttpResponseException;
@@ -27,8 +24,6 @@ import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
 @TestInstance(Lifecycle.PER_CLASS)
 abstract class AbstractTestBase {
 
-	private static final Logger log = Logger.getLogger(AbstractTestBase.class.getName());
-
 	protected Admin admin;
 
 	@BeforeAll
@@ -46,8 +41,6 @@ abstract class AbstractTestBase {
 	@BeforeEach
 	void deleteAllDatabases() throws GeneralSecurityException, IOException, ParseException {
 		List<Database> databases = admin.getDatabases();
-		log.log(Level.INFO, "Deleting databases {0}",
-				databases.stream().map(Database::getUid).collect(Collectors.toList()));
 		for (Database database : databases) {
 			admin.deleteDatabase(database.getUid());
 		}
@@ -98,7 +91,7 @@ abstract class AbstractTestBase {
 	@Test
 	void createDatabaseException() throws ParseException, IOException {
 		Assertions.assertThrows(HttpResponseException.class, () -> admin.createDatabase(
-				Database.builder().name("DatabaseCreateExceptionTestDB").memory(DataSize.ofGigabytes(10)).build()));
+				Database.builder().name("DatabaseCreateExceptionTestDB").memory(DataSize.ofGigabytes(999)).build()));
 	}
 
 }

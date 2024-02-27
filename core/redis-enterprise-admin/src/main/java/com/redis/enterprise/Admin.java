@@ -86,6 +86,26 @@ public class Admin implements AutoCloseable {
 		}
 	}
 
+	public String getUserName() {
+		return userName;
+	}
+
+	public int getPort() {
+		return port;
+	}
+
+	public String getProtocol() {
+		return protocol;
+	}
+
+	public String getPassword() {
+		return password;
+	}
+
+	public String getHost() {
+		return host;
+	}
+
 	public Admin withHost(String host) {
 		this.host = host;
 		return this;

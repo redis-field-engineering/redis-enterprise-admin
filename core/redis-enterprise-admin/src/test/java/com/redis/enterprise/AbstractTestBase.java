@@ -18,40 +18,28 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
-import org.junit.jupiter.api.condition.EnabledOnOs;
-import org.junit.jupiter.api.condition.OS;
 import org.springframework.util.unit.DataSize;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-
-import com.redis.testcontainers.RedisEnterpriseContainer;
 
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
 
-@Testcontainers
 @TestInstance(Lifecycle.PER_CLASS)
-@EnabledOnOs(value = OS.LINUX)
-class AdminTests {
+abstract class AbstractTestBase {
 
-	private static final Logger log = Logger.getLogger(AdminTests.class.getName());
+	private static final Logger log = Logger.getLogger(AbstractTestBase.class.getName());
 
-	@Container
-	private static RedisEnterpriseContainer server = new RedisEnterpriseContainer(
-			RedisEnterpriseContainer.DEFAULT_IMAGE_NAME.withTag(RedisEnterpriseContainer.DEFAULT_TAG));
-
-	private static Admin admin;
+	protected Admin admin;
 
 	@BeforeAll
-	static void setupAdmin() throws ParseException, GeneralSecurityException, IOException {
-		admin = new Admin();
-		admin.withUserName(RedisEnterpriseContainer.ADMIN_USERNAME)
-				.withPassword(RedisEnterpriseContainer.ADMIN_PASSWORD).withHost(server.getHost());
+	void setupAdmin() throws ParseException, GeneralSecurityException, IOException {
+		admin = admin();
 	}
 
+	protected abstract Admin admin();
+
 	@AfterAll
-	static void teardownAdmin() throws Exception {
+	void teardownAdmin() throws Exception {
 		admin.close();
 	}
 
@@ -77,13 +65,12 @@ class AdminTests {
 	@Test
 	void createClusterDatabase() throws ParseException, GeneralSecurityException, IOException {
 		String databaseName = "CreateClusterDBTest";
-		admin.createDatabase(Database.builder().name(databaseName).ossCluster(true)
-				.port(RedisEnterpriseContainer.DEFAULT_DATABASE_PORT).build());
+		admin.createDatabase(Database.builder().name(databaseName).ossCluster(true).port(12000).build());
 		List<Database> databases = admin.getDatabases();
 		Assertions.assertEquals(1, databases.size());
 		Assertions.assertEquals(databaseName, databases.get(0).getName());
 		Database database = databases.get(0);
-		RedisClusterClient client = RedisClusterClient.create(RedisURI.create(server.getHost(), database.getPort()));
+		RedisClusterClient client = RedisClusterClient.create(RedisURI.create(admin.getHost(), database.getPort()));
 		try (StatefulRedisClusterConnection<String, String> connection = client.connect()) {
 			Assertions.assertEquals("PONG", connection.sync().ping());
 		}

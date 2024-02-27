@@ -242,9 +242,14 @@ public class Admin implements AutoCloseable {
 				.until(() -> executeCommand(uid, new Command("PING")).getResponse().asBoolean());
 		return response;
 	}
-
+	
 	public List<Database> getDatabases() throws IOException, GeneralSecurityException {
 		return get(v1(BDBS), objectMapper.getTypeFactory().constructCollectionType(List.class, Database.class));
+	}
+	
+	public void deleteAllDatabases() throws IOException, GeneralSecurityException {
+		getDatabases().stream().map(Database::getUid).forEach(this::deleteDatabase);
+		Awaitility.await().until(() -> getDatabases().isEmpty());
 	}
 
 	public void deleteDatabase(long uid) {

@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.hc.core5.util.Asserts;
 import org.springframework.util.unit.DataSize;
@@ -155,6 +156,10 @@ public class Database {
 		return shardKeyRegex;
 	}
 
+	public void setShardKeyRegex(String... regexes) {
+		setShardKeyRegex(Stream.of(regexes).map(ShardKeyRegex::new).collect(Collectors.toList()));
+	}
+	
 	public void setShardKeyRegex(List<ShardKeyRegex> shardKeyRegex) {
 		this.shardKeyRegex = shardKeyRegex;
 	}
@@ -180,6 +185,10 @@ public class Database {
 	@JsonProperty("module_list")
 	public List<ModuleConfig> getModules() {
 		return modules;
+	}
+	
+	public void setModules(RedisModule... modules) {
+		setModules(Stream.of(modules).map(RedisModule::getModuleName).map(ModuleConfig::new).collect(Collectors.toList()));
 	}
 
 	public void setModules(List<ModuleConfig> modules) {

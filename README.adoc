@@ -4,7 +4,7 @@
 :project-name:     redis-enterprise-admin
 :project-group:    com.redis
 :project-version: 0.4.1
-:tests-path: redis-field-engineering/redis-enterprise-admin/blob/master/subprojects/admin/src/test/java/com/redis/enterprise/
+:tests-path: redis-field-engineering/redis-enterprise-admin/blob/master/core/admin/src/test/java/com/redis/enterprise/
 
 image:https://github.com/{project-owner}/{project-name}/actions/workflows/early-access.yml/badge.svg["Build Status", link="https://github.com/{project-owner}/{project-name}/actions"]
 image:https://img.shields.io/maven-central/v/{project-group}/{project-name}.svg[Download, link="https://search.maven.org/#search|ga|1|{project-group} {project-name}"]

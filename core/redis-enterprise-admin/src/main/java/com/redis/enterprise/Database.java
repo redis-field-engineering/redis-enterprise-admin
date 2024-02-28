@@ -7,7 +7,6 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.apache.hc.core5.util.Asserts;
-import org.springframework.util.unit.DataSize;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -19,8 +18,9 @@ public class Database {
 
 	public static final String DEFAULT_NAME = "redis-enterprise-admin-db";
 
+	public static final long MB_TO_BYTES = 1024 ^ 2;
 	public static final long DEFAULT_MEMORY_MB = 100;
-	public static final DataSize DEFAULT_MEMORY = DataSize.ofMegabytes(DEFAULT_MEMORY_MB);
+	public static final long DEFAULT_MEMORY = DEFAULT_MEMORY_MB * MB_TO_BYTES;
 	public static final int DEFAULT_CLUSTER_SHARD_COUNT = 3;
 
 	public static List<String> defaultShardKeyRegexes() {
@@ -31,7 +31,7 @@ public class Database {
 	private String name = DEFAULT_NAME;
 	private boolean replication;
 	private boolean sharding;
-	private long memory = DEFAULT_MEMORY.toBytes();
+	private long memory = DEFAULT_MEMORY;
 	private Integer port;
 	private String type;
 	private boolean ossCluster;
@@ -50,7 +50,7 @@ public class Database {
 		this.name = builder.name;
 		this.replication = builder.replication;
 		this.sharding = builder.sharding;
-		this.memory = builder.memory.toBytes();
+		this.memory = builder.memory;
 		this.port = builder.port;
 		this.type = builder.type;
 		this.ossCluster = builder.ossCluster;
@@ -304,7 +304,7 @@ public class Database {
 		private String name = DEFAULT_NAME;
 		private boolean replication;
 		private boolean sharding;
-		private DataSize memory = DEFAULT_MEMORY;
+		private long memory = DEFAULT_MEMORY;
 		private Integer port;
 		private String type;
 		private boolean ossCluster;
@@ -338,7 +338,12 @@ public class Database {
 			return this;
 		}
 
-		public Builder memory(DataSize memory) {
+		/**
+		 * 
+		 * @param memory database memory in bytes
+		 * @return this builder
+		 */
+		public Builder memory(long memory) {
 			this.memory = memory;
 			return this;
 		}

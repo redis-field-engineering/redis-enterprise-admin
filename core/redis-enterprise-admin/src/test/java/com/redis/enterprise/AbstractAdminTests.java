@@ -15,7 +15,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
-import org.springframework.util.unit.DataSize;
 
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.cluster.RedisClusterClient;
@@ -90,8 +89,8 @@ abstract class AbstractAdminTests {
 
 	@Test
 	void createDatabaseException() throws ParseException, IOException {
-		Assertions.assertThrows(HttpResponseException.class, () -> admin.createDatabase(
-				Database.builder().name("DatabaseCreateExceptionTestDB").memory(DataSize.ofGigabytes(999)).build()));
+		Assertions.assertThrows(HttpResponseException.class, () -> admin.createDatabase(Database.builder()
+				.name("DatabaseCreateExceptionTestDB").memory(999000 * Database.MB_TO_BYTES).build()));
 	}
 
 }

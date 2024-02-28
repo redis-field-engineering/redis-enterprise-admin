@@ -31,3 +31,18 @@ projects {
         }
     }
 }
+
+enforce {
+    rule(enforcer.rules.RequireJavaVersion) { r ->
+        r.version.set('17')
+    }
+    rule(enforcer.rules.EnforceBytecodeVersion) { r ->
+        r.enabled = false
+    }
+    rule(enforcer.rules.BanDuplicateClasses) { r ->
+        r.enabled = false
+    }
+    rule(enforcer.rules.DependencyConvergence) { r ->
+        r.enabled = false
+    }
+}

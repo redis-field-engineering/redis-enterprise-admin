@@ -9,7 +9,7 @@ import com.redis.testcontainers.RedisEnterpriseContainer;
 
 @Testcontainers
 @EnabledOnOs(value = OS.LINUX)
-class RedisEnterpriseContainerTests extends AbstractTestBase {
+class ContainerAdminTests extends AbstractAdminTests {
 
 	@Container
 	private static RedisEnterpriseContainer server = new RedisEnterpriseContainer(

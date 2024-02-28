@@ -22,7 +22,7 @@ import io.lettuce.core.cluster.RedisClusterClient;
 import io.lettuce.core.cluster.api.StatefulRedisClusterConnection;
 
 @TestInstance(Lifecycle.PER_CLASS)
-abstract class AbstractTestBase {
+abstract class AbstractAdminTests {
 
 	protected Admin admin;
 

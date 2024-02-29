@@ -348,6 +348,10 @@ public class Database {
 			return this;
 		}
 
+		public Builder memoryMB(long memory) {
+			return memory(memory * MB_TO_BYTES);
+		}
+
 		public Builder port(Integer port) {
 			this.port = port;
 			return this;

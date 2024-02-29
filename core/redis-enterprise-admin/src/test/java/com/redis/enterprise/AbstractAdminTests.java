@@ -89,8 +89,9 @@ abstract class AbstractAdminTests {
 
 	@Test
 	void createDatabaseException() throws ParseException, IOException {
-		Assertions.assertThrows(HttpResponseException.class, () -> admin.createDatabase(Database.builder()
-				.name("DatabaseCreateExceptionTestDB").memory(999000 * Database.MB_TO_BYTES).build()));
+		long memory = 999 * Database.GIGA;
+		Assertions.assertThrows(HttpResponseException.class, () -> admin
+				.createDatabase(Database.builder().name("DatabaseCreateExceptionTestDB").memory(memory).build()));
 	}
 
 }

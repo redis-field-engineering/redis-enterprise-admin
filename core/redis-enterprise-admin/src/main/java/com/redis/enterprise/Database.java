@@ -18,9 +18,11 @@ public class Database {
 
 	public static final String DEFAULT_NAME = "redis-enterprise-admin-db";
 
-	public static final long MB_TO_BYTES = 1024 ^ 2;
+	public static final long KILO = 1024;
+	public static final long MEGA = KILO * KILO;
+	public static final long GIGA = MEGA * KILO;
 	public static final long DEFAULT_MEMORY_MB = 100;
-	public static final long DEFAULT_MEMORY = DEFAULT_MEMORY_MB * MB_TO_BYTES;
+	public static final long DEFAULT_MEMORY = DEFAULT_MEMORY_MB * MEGA;
 	public static final int DEFAULT_CLUSTER_SHARD_COUNT = 3;
 
 	public static List<String> defaultShardKeyRegexes() {
@@ -348,8 +350,16 @@ public class Database {
 			return this;
 		}
 
+		public Builder memoryKB(long memory) {
+			return memory(memory * KILO);
+		}
+
 		public Builder memoryMB(long memory) {
-			return memory(memory * MB_TO_BYTES);
+			return memory(memory * MEGA);
+		}
+
+		public Builder memoryGB(long memory) {
+			return memory(memory * GIGA);
 		}
 
 		public Builder port(Integer port) {

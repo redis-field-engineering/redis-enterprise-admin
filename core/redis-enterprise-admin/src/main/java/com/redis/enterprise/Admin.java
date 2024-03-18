@@ -21,7 +21,6 @@ import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.impl.auth.BasicScheme;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
-import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.client5.http.impl.classic.HttpClientBuilder;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.client5.http.impl.io.PoolingHttpClientConnectionManagerBuilder;
@@ -35,7 +34,6 @@ import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.HttpHeaders;
 import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.HttpStatus;
-import org.apache.hc.core5.http.ParseException;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.ssl.SSLContexts;
@@ -184,17 +182,13 @@ public class Admin implements AutoCloseable {
 		BasicScheme basicAuth = new BasicScheme();
 		basicAuth.initPreemptive(new UsernamePasswordCredentials(userName, password.toCharArray()));
 		localContext.resetAuthExchange(target, basicAuth);
-		CloseableHttpResponse response = client().execute(request, localContext);
-		String json;
-		try {
-			json = EntityUtils.toString(response.getEntity());
-		} catch (ParseException e) {
-			throw new HttpResponseParsingException("Could not parse response", e);
-		}
-		if (response.getCode() == successCode) {
-			return objectMapper.readValue(json, type);
-		}
-		throw new HttpResponseException(response.getCode(), response.getReasonPhrase() + " " + json);
+		return client().execute(request, localContext, r -> {
+			String content = EntityUtils.toString(r.getEntity());
+			if (r.getCode() == successCode) {
+				return objectMapper.readValue(content, type);
+			}
+			throw new HttpResponseException(r.getCode(), r.getReasonPhrase() + " " + content);
+		});
 	}
 
 	private CloseableHttpClient client() throws KeyManagementException, NoSuchAlgorithmException, KeyStoreException {
@@ -209,15 +203,6 @@ public class Admin implements AutoCloseable {
 			client = clientBuilder.build();
 		}
 		return client;
-	}
-
-	private static class HttpResponseParsingException extends IOException {
-
-		private static final long serialVersionUID = 1L;
-
-		public HttpResponseParsingException(String message, Throwable cause) {
-			super(message, cause);
-		}
 	}
 
 	public List<InstalledModule> getModules() throws IOException, GeneralSecurityException {
@@ -242,11 +227,11 @@ public class Admin implements AutoCloseable {
 				.until(() -> executeCommand(uid, new Command("PING")).getResponse().asBoolean());
 		return response;
 	}
-	
+
 	public List<Database> getDatabases() throws IOException, GeneralSecurityException {
 		return get(v1(BDBS), objectMapper.getTypeFactory().constructCollectionType(List.class, Database.class));
 	}
-	
+
 	public void deleteAllDatabases() throws IOException, GeneralSecurityException {
 		getDatabases().stream().map(Database::getUid).forEach(this::deleteDatabase);
 		Awaitility.await().until(() -> getDatabases().isEmpty());

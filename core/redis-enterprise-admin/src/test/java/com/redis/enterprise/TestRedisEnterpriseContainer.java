@@ -12,7 +12,7 @@ public class TestRedisEnterpriseContainer extends AbstractRedisEnterpriseContain
 	private Database database = Database.builder().shardCount(2).port(12000).ossCluster(true)
 			.modules(RedisModule.SEARCH, RedisModule.JSON, RedisModule.TIMESERIES, RedisModule.BLOOM).build();
 
-	private static final Logger log = LoggerFactory.getLogger(TestRedisEnterpriseContainer.class);
+	private final Logger log = LoggerFactory.getLogger(TestRedisEnterpriseContainer.class);
 
 	public TestRedisEnterpriseContainer(String dockerImageName) {
 		super(dockerImageName);

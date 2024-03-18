@@ -35,7 +35,7 @@ public class Database {
 	private boolean sharding;
 	private long memory = DEFAULT_MEMORY;
 	private Integer port;
-	private String type;
+	private Type type;
 	private boolean ossCluster;
 	private ProxyPolicy proxyPolicy;
 	private IPType ossClusterAPIPreferredIPType;
@@ -117,11 +117,11 @@ public class Database {
 		this.port = port;
 	}
 
-	public String getType() {
+	public Type getType() {
 		return type;
 	}
 
-	public void setType(String type) {
+	public void setType(Type type) {
 		this.type = type;
 	}
 
@@ -231,6 +231,12 @@ public class Database {
 		SPARSE
 	}
 
+	public enum Type {
+		@JsonProperty("redis")
+		REDIS, @JsonProperty("memcached")
+		MEMCACHED
+	}
+
 	@JsonInclude(JsonInclude.Include.NON_NULL)
 	public static class ModuleConfig {
 
@@ -308,7 +314,7 @@ public class Database {
 		private boolean sharding;
 		private long memory = DEFAULT_MEMORY;
 		private Integer port;
-		private String type;
+		private Type type;
 		private boolean ossCluster;
 		private ProxyPolicy proxyPolicy;
 		private IPType ossClusterAPIPreferredIPType;
@@ -367,7 +373,7 @@ public class Database {
 			return this;
 		}
 
-		public Builder type(String type) {
+		public Builder type(Type type) {
 			this.type = type;
 			return this;
 		}

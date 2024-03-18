@@ -15,7 +15,7 @@ buildscript {
 
 apply plugin: 'org.kordamp.gradle.kordamp-parentbuild'
 
-rootProject.name = 'redis-enterprise-admin-root'
+rootProject.name = 'redis-enterprise-admin'
 
 projects {
     directories = ['core']
@@ -25,6 +25,7 @@ projects {
             id 'org.kordamp.gradle.java-project'
         }
         dirs(['core']) {
+            id 'eclipse'
             id 'java-library'
             id 'org.springframework.boot'
             id 'io.spring.dependency-management'

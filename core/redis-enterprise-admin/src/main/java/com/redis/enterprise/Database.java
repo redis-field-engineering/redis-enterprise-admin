@@ -37,8 +37,9 @@ public class Database {
 	private Integer port;
 	private Type type;
 	private boolean ossCluster;
-	private ProxyPolicy proxyPolicy;
 	private IPType ossClusterAPIPreferredIPType;
+	private ProxyPolicy proxyPolicy;
+	private String redisVersion;
 	private List<ShardKeyRegex> shardKeyRegex;
 	private Integer shardCount;
 	private ShardPlacement shardPlacement;
@@ -56,8 +57,9 @@ public class Database {
 		this.port = builder.port;
 		this.type = builder.type;
 		this.ossCluster = builder.ossCluster;
-		this.proxyPolicy = builder.proxyPolicy;
 		this.ossClusterAPIPreferredIPType = builder.ossClusterAPIPreferredIPType;
+		this.proxyPolicy = builder.proxyPolicy;
+		this.redisVersion = builder.redisVersion;
 		this.shardKeyRegex = builder.shardKeyRegexes.stream().map(ShardKeyRegex::new).collect(Collectors.toList());
 		this.shardCount = builder.shardCount;
 		this.shardPlacement = builder.shardPlacement;
@@ -134,6 +136,15 @@ public class Database {
 		this.ossCluster = ossCluster;
 	}
 
+	@JsonProperty("oss_cluster_api_preferred_ip_type")
+	public IPType getOssClusterAPIPreferredIPType() {
+		return ossClusterAPIPreferredIPType;
+	}
+
+	public void setOssClusterAPIPreferredIPType(IPType ossClusterAPIPreferredIPType) {
+		this.ossClusterAPIPreferredIPType = ossClusterAPIPreferredIPType;
+	}
+
 	@JsonProperty("proxy_policy")
 	public ProxyPolicy getProxyPolicy() {
 		return proxyPolicy;
@@ -143,13 +154,13 @@ public class Database {
 		this.proxyPolicy = proxyPolicy;
 	}
 
-	@JsonProperty("oss_cluster_api_preferred_ip_type")
-	public IPType getOssClusterAPIPreferredIPType() {
-		return ossClusterAPIPreferredIPType;
+	@JsonProperty("redis_version")
+	public String getRedisVersion() {
+		return redisVersion;
 	}
 
-	public void setOssClusterAPIPreferredIPType(IPType ossClusterAPIPreferredIPType) {
-		this.ossClusterAPIPreferredIPType = ossClusterAPIPreferredIPType;
+	public void setRedisVersion(String redisVersion) {
+		this.redisVersion = redisVersion;
 	}
 
 	@JsonProperty("shard_key_regex")
@@ -191,7 +202,7 @@ public class Database {
 	@Override
 	public int hashCode() {
 		return Objects.hash(memory, modules, name, ossCluster, ossClusterAPIPreferredIPType, port, proxyPolicy,
-				replication, shardCount, shardKeyRegex, shardPlacement, sharding, type, uid);
+				replication, redisVersion, shardCount, shardKeyRegex, shardPlacement, sharding, type, uid);
 	}
 
 	@Override
@@ -206,9 +217,10 @@ public class Database {
 		return memory == other.memory && Objects.equals(modules, other.modules) && Objects.equals(name, other.name)
 				&& ossCluster == other.ossCluster && ossClusterAPIPreferredIPType == other.ossClusterAPIPreferredIPType
 				&& Objects.equals(port, other.port) && proxyPolicy == other.proxyPolicy
-				&& replication == other.replication && Objects.equals(shardCount, other.shardCount)
-				&& Objects.equals(shardKeyRegex, other.shardKeyRegex) && shardPlacement == other.shardPlacement
-				&& sharding == other.sharding && Objects.equals(type, other.type) && Objects.equals(uid, other.uid);
+				&& Objects.equals(redisVersion, other.redisVersion) && replication == other.replication
+				&& Objects.equals(shardCount, other.shardCount) && Objects.equals(shardKeyRegex, other.shardKeyRegex)
+				&& shardPlacement == other.shardPlacement && sharding == other.sharding
+				&& Objects.equals(type, other.type) && Objects.equals(uid, other.uid);
 	}
 
 	public enum IPType {
@@ -240,15 +252,25 @@ public class Database {
 	@JsonInclude(JsonInclude.Include.NON_NULL)
 	public static class ModuleConfig {
 
+		public static final String DEFAULT_ARGS = "";
+
 		private String name;
 		private String id;
-		private String args = "";
+		private String args = DEFAULT_ARGS;
+		private String version;
 
 		public ModuleConfig() {
 		}
 
 		public ModuleConfig(String name) {
 			this.name = name;
+		}
+
+		private ModuleConfig(Builder builder) {
+			this.name = builder.name;
+			this.id = builder.id;
+			this.args = builder.args;
+			this.version = builder.version;
 		}
 
 		@JsonProperty("module_name")
@@ -276,6 +298,68 @@ public class Database {
 
 		public void setArgs(String args) {
 			this.args = args;
+		}
+
+		@JsonProperty("semantic_version")
+		public String getVersion() {
+			return version;
+		}
+
+		public void setVersion(String version) {
+			this.version = version;
+		}
+
+		public static Builder search() {
+			return new Builder().name(RedisModule.SEARCH.getModuleName());
+		}
+
+		public static Builder json() {
+			return new Builder().name(RedisModule.JSON.getModuleName());
+		}
+
+		public static Builder probabilistic() {
+			return new Builder().name(RedisModule.PROBABILISTIC.getModuleName());
+		}
+
+		public static Builder timeseries() {
+			return new Builder().name(RedisModule.TIMESERIES.getModuleName());
+		}
+
+		public static Builder builder() {
+			return new Builder();
+		}
+
+		public static class Builder {
+
+			private String name;
+			private String id;
+			private String args = DEFAULT_ARGS;
+			private String version;
+
+			public Builder name(String name) {
+				this.name = name;
+				return this;
+			}
+
+			public Builder id(String id) {
+				this.id = id;
+				return this;
+			}
+
+			public Builder args(String args) {
+				this.args = args;
+				return this;
+			}
+
+			public Builder version(String version) {
+				this.version = version;
+				return this;
+			}
+
+			public ModuleConfig build() {
+				return new ModuleConfig(this);
+			}
+
 		}
 
 	}
@@ -318,6 +402,7 @@ public class Database {
 		private boolean ossCluster;
 		private ProxyPolicy proxyPolicy;
 		private IPType ossClusterAPIPreferredIPType;
+		private String redisVersion;
 		private List<String> shardKeyRegexes = new ArrayList<>();
 		private Integer shardCount;
 		private ShardPlacement shardPlacement;
@@ -333,6 +418,11 @@ public class Database {
 
 		public Builder name(String name) {
 			this.name = name;
+			return this;
+		}
+
+		public Builder redisVersion(String version) {
+			this.redisVersion = version;
 			return this;
 		}
 
@@ -424,6 +514,11 @@ public class Database {
 
 		public Builder shardPlacement(ShardPlacement shardPlacement) {
 			this.shardPlacement = shardPlacement;
+			return this;
+		}
+
+		public Builder module(ModuleConfig module) {
+			this.moduleConfigs.add(module);
 			return this;
 		}
 

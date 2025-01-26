@@ -8,9 +8,10 @@ import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
-import java.util.HashMap;
+import java.util.Collection;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Stream;
 
 import javax.net.ssl.SSLContext;
 
@@ -211,15 +212,20 @@ public class Admin implements AutoCloseable {
 	}
 
 	public Database createDatabase(Database database) throws IOException, GeneralSecurityException {
-		Map<String, InstalledModule> installedModules = new HashMap<>();
-		for (InstalledModule module : getModules()) {
-			installedModules.put(module.getName(), module);
-		}
+		Collection<InstalledModule> installedModules = getModules();
 		for (ModuleConfig moduleConfig : database.getModules()) {
-			if (!installedModules.containsKey(moduleConfig.getName())) {
+			Stream<InstalledModule> matches = installedModules.stream()
+					.filter(m -> m.getName().equals(moduleConfig.getName()))
+					.sorted((m1, m2) -> Integer.compare(m2.getVersion(), m1.getVersion()));
+			Optional<InstalledModule> match = matches.findFirst();
+			if (match.isPresent()) {
+				InstalledModule installedModule = match.get();
+				if (moduleConfig.getId() == null) {
+					moduleConfig.setId(installedModule.getId());
+				}
+			} else {
 				throw new IllegalArgumentException(String.format("Module %s not installed", moduleConfig.getName()));
 			}
-			moduleConfig.setId(installedModules.get(moduleConfig.getName()).getId());
 		}
 		Database response = post(v1(BDBS), database, Database.class);
 		long uid = response.getUid();

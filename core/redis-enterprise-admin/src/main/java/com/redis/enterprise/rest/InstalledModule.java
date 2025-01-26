@@ -8,6 +8,7 @@ public class InstalledModule {
 
 	private String name;
 	private String id;
+	private int version;
 
 	public String getName() {
 		return name;
@@ -25,6 +26,14 @@ public class InstalledModule {
 	@JsonProperty("uid")
 	public void setId(String id) {
 		this.id = id;
+	}
+
+	public int getVersion() {
+		return version;
+	}
+
+	public void setVersion(int version) {
+		this.version = version;
 	}
 
 }

@@ -11,6 +11,9 @@ dependencies {
     testImplementation(group: 'com.redis', name: 'testcontainers-redis', version: testcontainersRedisVersion) {
         exclude group: 'com.redis', module: 'redis-enterprise-admin'
     }
+    testImplementation(group: 'com.redis', name: 'testcontainers-redis-enterprise', version: testcontainersRedisVersion) {
+        exclude group: 'com.redis', module: 'redis-enterprise-admin'
+    }
     testImplementation group: 'com.redis', name: 'lettucemod', version: lettucemodVersion
 }
 

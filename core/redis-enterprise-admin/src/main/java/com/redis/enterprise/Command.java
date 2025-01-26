@@ -1,6 +1,7 @@
 package com.redis.enterprise;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -32,6 +33,33 @@ public class Command {
 
 	public void setArgs(List<String> args) {
 		this.args = args;
+	}
+
+	public static Builder name(String name) {
+		return new Builder(name);
+	}
+
+	public static class Builder {
+
+		private final String command;
+		private List<String> args = new ArrayList<>();
+
+		public Builder(String name) {
+			this.command = name;
+		}
+
+		public Builder args(String... args) {
+			this.args = new ArrayList<>(Arrays.asList(args));
+			return this;
+		}
+
+		public Command build() {
+			Command cmd = new Command();
+			cmd.setCommand(this.command);
+			cmd.setArgs(args);
+			return cmd;
+		}
+
 	}
 
 }

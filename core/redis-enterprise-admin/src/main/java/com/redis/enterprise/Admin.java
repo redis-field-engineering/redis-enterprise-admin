@@ -1,6 +1,8 @@
 package com.redis.enterprise;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
@@ -8,9 +10,11 @@ import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 import javax.net.ssl.SSLContext;
@@ -39,15 +43,21 @@ import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.ssl.SSLContexts;
 import org.awaitility.Awaitility;
+import org.awaitility.core.ConditionFactory;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.SimpleType;
 import com.redis.enterprise.Database.ModuleConfig;
+import com.redis.enterprise.Database.Type;
 import com.redis.enterprise.rest.Bootstrap;
 import com.redis.enterprise.rest.CommandResponse;
 import com.redis.enterprise.rest.InstalledModule;
+
+import net.spy.memcached.ConnectionObserver;
+import net.spy.memcached.DefaultConnectionFactory;
+import net.spy.memcached.MemcachedConnection;
 
 public class Admin implements AutoCloseable {
 
@@ -57,6 +67,7 @@ public class Admin implements AutoCloseable {
 	public static final String DEFAULT_HOST = "localhost";
 	public static final int DEFAULT_PORT = 9443;
 
+	private static final Command PING = Command.name("PING").build();
 	private static final String BOOTSTRAP = "bootstrap";
 	private static final String MODULES = "modules";
 	private static final String BDBS = "bdbs";
@@ -64,6 +75,8 @@ public class Admin implements AutoCloseable {
 	private static final String CONTENT_TYPE_JSON = "application/json";
 	private static final String V1 = "/v1/";
 	private static final CharSequence PATH_SEPARATOR = "/";
+	private static final Duration DEFAULT_DATABASE_CREATION_TIMEOUT = Duration.ofSeconds(10);
+	private static final Duration DEFAULT_DATABASE_CREATION_POLL_INTERVAL = Duration.ofSeconds(1);
 
 	private final ObjectMapper objectMapper = new ObjectMapper()
 			.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -73,6 +86,8 @@ public class Admin implements AutoCloseable {
 	private String protocol = DEFAULT_PROTOCOL;
 	private String host = DEFAULT_HOST;
 	private int port = DEFAULT_PORT;
+	private Duration databaseCreationTimeout = DEFAULT_DATABASE_CREATION_TIMEOUT;
+	private Duration databaseCreationPollInterval = DEFAULT_DATABASE_CREATION_POLL_INTERVAL;
 
 	public void close() throws IOException {
 		if (client != null) {
@@ -108,6 +123,16 @@ public class Admin implements AutoCloseable {
 
 	public Admin withProtocol(String protocol) {
 		this.protocol = protocol;
+		return this;
+	}
+
+	public Admin withDatabaseCreationPollInterval(Duration interval) {
+		this.databaseCreationPollInterval = interval;
+		return this;
+	}
+
+	public Admin withDatabaseCreationTimeout(Duration timeout) {
+		this.databaseCreationTimeout = timeout;
 		return this;
 	}
 
@@ -228,9 +253,33 @@ public class Admin implements AutoCloseable {
 			}
 		}
 		Database response = post(v1(BDBS), database, Database.class);
-		long uid = response.getUid();
-		Awaitility.await().pollInterval(Duration.ofSeconds(1)).ignoreExceptions()
-				.until(() -> executeCommand(uid, new Command("PING")).getResponse().asBoolean());
+		ConditionFactory await = Awaitility.await().pollInterval(databaseCreationPollInterval)
+				.timeout(databaseCreationTimeout).ignoreExceptions();
+		if (response.getType() == Type.REDIS) {
+			await.until(() -> executeCommand(response.getUid(), PING).getResponse().asBoolean());
+		} else {
+			DefaultConnectionFactory connectionFactory = new DefaultConnectionFactory();
+			MemcachedConnection connection = connectionFactory
+					.createConnection(Arrays.asList(new InetSocketAddress(host, response.getPort())));
+			AtomicBoolean connectionEstablished = new AtomicBoolean();
+			try {
+				connection.addObserver(new ConnectionObserver() {
+
+					@Override
+					public void connectionLost(SocketAddress sa) {
+						// do nothing
+					}
+
+					@Override
+					public void connectionEstablished(SocketAddress sa, int reconnectCount) {
+						connectionEstablished.set(true);
+					}
+				});
+				await.until(connectionEstablished::get);
+			} finally {
+				connection.shutdown();
+			}
+		}
 		return response;
 	}
 

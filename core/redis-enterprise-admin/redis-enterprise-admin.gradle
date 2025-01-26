@@ -2,6 +2,8 @@ dependencies {
     implementation 'com.fasterxml.jackson.core:jackson-databind'
     implementation 'org.apache.httpcomponents.client5:httpclient5'
     implementation 'org.awaitility:awaitility'
+    implementation group: 'net.spy', name: 'spymemcached', version: spymemcachedVersion
+    
     testImplementation 'org.slf4j:slf4j-simple'
     testImplementation 'org.junit.jupiter:junit-jupiter-api'
     testImplementation 'org.junit.jupiter:junit-jupiter-params'

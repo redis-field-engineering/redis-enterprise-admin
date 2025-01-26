@@ -8,8 +8,8 @@ on:
         required: true
       branch:
         description: 'Branch'
-        default: 'master'
-        required: false
+        default: 'main'
+        required: true
       tasks:
         description: 'Tasks'
         default: 'build aggregateTestReports publish'
@@ -23,8 +23,8 @@ jobs:
       branch: ${{ github.event.inputs.branch }}
       version: ${{ github.event.inputs.version }}
       tasks: ${{ github.event.inputs.tasks }}
-      java-version: 21
     secrets:
+      github-user: ${{ secrets.GIT_USER }}
       github-token: ${{ secrets.GIT_ACCESS_TOKEN }}
       gpg-passphrase: ${{ secrets.GPG_PASSPHRASE }}
       gpg-public-key: ${{ secrets.GPG_PUBLIC_KEY }}

@@ -13,11 +13,7 @@ project:
       groupId: com.redis
       version: 8
       multiProject: true
-  tags:
-    - 'redis'
-    - 'enterprise'
-    - 'admin'
-    - 'rest'
+  tags: ['redis', 'enterprise', 'admin', 'rest']
 
 release:
   github:

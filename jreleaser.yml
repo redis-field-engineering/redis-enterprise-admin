@@ -6,12 +6,13 @@ project:
     homepage: https://{{repoHost}}/{{repoOwner}}/{{repoName}}
   authors:
     - Julien Ruaux
-  license: Apache-2.0
-  java:
-    groupId: com.redis
-    version: 8
-    multiProject: true
   inceptionYear: 2020
+  license: Apache-2.0
+  languages:
+    java:
+      groupId: com.redis
+      version: 8
+      multiProject: true
   tags:
     - 'redis'
     - 'enterprise'

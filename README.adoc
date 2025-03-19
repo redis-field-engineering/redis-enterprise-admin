@@ -36,4 +36,4 @@ dependencies {
 == Examples
 
 Redis Enterprise Admin::
-https://github.com/{tests-path}/AdminTests.java[AdminTests.java]
+https://github.com/redis-field-engineering/redis-enterprise-admin/blob/main/core/redis-enterprise-admin/src/test/java/com/redis/enterprise/ContainerAdminTests.java[ContainerAdminTests.java]

@@ -36,6 +36,7 @@ class DatabaseReadinessTests {
 	private final AtomicInteger managementProbeCalls = new AtomicInteger();
 	private int databasePort;
 	private int creationStatus = 200;
+	private boolean autoAssignPort;
 	private String endpoints = "[]";
 
 	@BeforeEach
@@ -57,6 +58,15 @@ class DatabaseReadinessTests {
 			Database database = admin.createDatabase(Database.builder().build());
 			Assertions.assertEquals(42L, database.getUid());
 			Assertions.assertEquals(databasePort, database.getPort());
+			Assertions.assertEquals(0, managementProbeCalls.get());
+		}
+	}
+
+	@Test
+	void usesAssignedDatabasePort() throws Exception {
+		autoAssignPort = true;
+		try (Admin admin = admin()) {
+			admin.createDatabase(Database.builder().build());
 			Assertions.assertEquals(0, managementProbeCalls.get());
 		}
 	}
@@ -165,7 +175,7 @@ class DatabaseReadinessTests {
 				respond(exchange, 200, "[]");
 			} else if (path.equals("/v1/bdbs") && exchange.getRequestMethod().equals("POST")) {
 				respond(exchange, creationStatus,
-						"{\"uid\":42,\"type\":\"redis\",\"port\":" + databasePort + "}");
+						"{\"uid\":42,\"type\":\"redis\",\"port\":" + (autoAssignPort ? 0 : databasePort) + "}");
 			} else if (path.equals("/v1/bdbs/42") && exchange.getRequestMethod().equals("GET")) {
 				respond(exchange, 200, "{\"uid\":42,\"type\":\"redis\",\"port\":" + databasePort
 						+ ",\"endpoints\":" + endpoints + "}");

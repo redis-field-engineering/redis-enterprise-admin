@@ -293,11 +293,19 @@ public class Admin implements AutoCloseable {
 	private boolean pingDatabase(Database database) throws IOException, GeneralSecurityException {
 		// Prefer the configured host for forwarded container ports. On a multi-node
 		// cluster the admin node may not host a proxy, so also try advertised endpoints.
-		if (pingDatabase(host, database.getPort())) {
+		if (database.getPort() != null && database.getPort() != 0 && pingDatabase(host, database.getPort())) {
 			return true;
 		}
 		Database current = get(v1(BDBS, String.valueOf(database.getUid())), Database.class);
+		// A creation response can contain port 0 while Enterprise assigns an automatic port.
+		if (current.getPort() != null && current.getPort() != 0 && !current.getPort().equals(database.getPort())
+				&& pingDatabase(host, current.getPort())) {
+			return true;
+		}
 		for (Database.Endpoint endpoint : Args.notNull(current.getEndpoints(), "Database endpoints")) {
+			if (endpoint.port() == 0) {
+				continue;
+			}
 			if (endpoint.addr() != null) {
 				for (String address : endpoint.addr()) {
 					if (pingDatabase(address, endpoint.port())) {

@@ -2,9 +2,11 @@ package com.redis.enterprise;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
@@ -42,6 +44,7 @@ import org.apache.hc.core5.http.HttpStatus;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.ssl.SSLContexts;
+import org.apache.hc.core5.util.Args;
 import org.awaitility.Awaitility;
 import org.awaitility.core.ConditionFactory;
 
@@ -67,7 +70,9 @@ public class Admin implements AutoCloseable {
 	public static final String DEFAULT_HOST = "localhost";
 	public static final int DEFAULT_PORT = 9443;
 
-	private static final Command PING = Command.name("PING").build();
+	private static final byte[] PING = "*1\r\n$4\r\nPING\r\n".getBytes(StandardCharsets.US_ASCII);
+	private static final byte[] PONG = "+PONG\r\n".getBytes(StandardCharsets.US_ASCII);
+	private static final int MAX_PING_TIMEOUT_MILLIS = 1000;
 	private static final String BOOTSTRAP = "bootstrap";
 	private static final String MODULES = "modules";
 	private static final String BDBS = "bdbs";
@@ -254,9 +259,11 @@ public class Admin implements AutoCloseable {
 		}
 		Database response = post(v1(BDBS), database, Database.class);
 		ConditionFactory await = Awaitility.await().pollInterval(databaseCreationPollInterval)
-				.timeout(databaseCreationTimeout).ignoreExceptions();
+				.timeout(databaseCreationTimeout);
 		if (response.getType() == Type.REDIS) {
-			await.until(() -> executeCommand(response.getUid(), PING).getResponse().asBoolean());
+			await.ignoreExceptionsMatching(failure -> failure instanceof IOException
+					&& !(failure instanceof HttpResponseException))
+					.until(() -> pingDatabase(response));
 		} else {
 			DefaultConnectionFactory connectionFactory = new DefaultConnectionFactory();
 			MemcachedConnection connection = connectionFactory
@@ -275,12 +282,64 @@ public class Admin implements AutoCloseable {
 						connectionEstablished.set(true);
 					}
 				});
-				await.until(connectionEstablished::get);
+				await.ignoreExceptions().until(connectionEstablished::get);
 			} finally {
 				connection.shutdown();
 			}
 		}
 		return response;
+	}
+
+	private boolean pingDatabase(Database database) throws IOException, GeneralSecurityException {
+		// Prefer the configured host for forwarded container ports. On a multi-node
+		// cluster the admin node may not host a proxy, so also try advertised endpoints.
+		if (database.getPort() != null && database.getPort() != 0 && pingDatabase(host, database.getPort())) {
+			return true;
+		}
+		Database current = get(v1(BDBS, String.valueOf(database.getUid())), Database.class);
+		// A creation response can contain port 0 while Enterprise assigns an automatic port.
+		if (current.getPort() != null && current.getPort() != 0 && !current.getPort().equals(database.getPort())
+				&& pingDatabase(host, current.getPort())) {
+			return true;
+		}
+		for (Database.Endpoint endpoint : Args.notNull(current.getEndpoints(), "Database endpoints")) {
+			if (endpoint.port() == 0) {
+				continue;
+			}
+			// Auto-assigned ports live on the endpoint; the database's port can remain zero.
+			if (pingDatabase(host, endpoint.port())) {
+				return true;
+			}
+			if (endpoint.addr() != null) {
+				for (String address : endpoint.addr()) {
+					if (pingDatabase(address, endpoint.port())) {
+						return true;
+					}
+				}
+			}
+			if (endpoint.dnsName() != null && pingDatabase(endpoint.dnsName(), endpoint.port())) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private boolean pingDatabase(String databaseHost, int databasePort) {
+		Args.notBlank(databaseHost, "Database endpoint host");
+		Args.check(databasePort > 0 && databasePort <= 65535, "Invalid database endpoint port: %s", databasePort);
+		long creationTimeoutMillis = databaseCreationTimeout.toMillis();
+		if (creationTimeoutMillis < 1) {
+			throw new IllegalArgumentException("Database creation timeout must be at least one millisecond");
+		}
+		int timeout = (int) Math.min(creationTimeoutMillis, MAX_PING_TIMEOUT_MILLIS);
+		try (Socket socket = new Socket()) {
+			socket.connect(new InetSocketAddress(databaseHost, databasePort), timeout);
+			socket.setSoTimeout(timeout);
+			socket.getOutputStream().write(PING);
+			return Arrays.equals(PONG, socket.getInputStream().readNBytes(PONG.length));
+		} catch (IOException e) {
+			return false;
+		}
 	}
 
 	public List<Database> getDatabases() throws IOException, GeneralSecurityException {

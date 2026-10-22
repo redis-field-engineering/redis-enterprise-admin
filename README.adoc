@@ -12,6 +12,18 @@ image:https://img.shields.io/github/downloads/{project-owner}/{project-name}/tot
 
 Java admin client for Redis Enterprise that wraps the REST API.
 
+`Admin.createDatabase` waits for Redis readiness by connecting to the database
+port returned by the creation response on the configured host, sending a RESP
+`PING`, and requiring `+PONG`. If that host does not serve the database, the probe
+refreshes database metadata and tries its advertised endpoint addresses and DNS
+names. This supports multi-node proxy placement and forwarded container ports.
+Automatically assigned ports are read from endpoint metadata, since the
+database's top-level port can remain zero.
+Connection and read timeouts are bounded; network
+failures and non-PONG responses are retried within the configured database
+creation timeout. This probe uses the plain TCP, unauthenticated database
+connections currently supported by the database configuration model.
+
 == Getting Started
 
 .Gradle

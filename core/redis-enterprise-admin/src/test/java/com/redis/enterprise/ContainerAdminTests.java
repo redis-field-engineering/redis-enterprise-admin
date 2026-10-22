@@ -16,7 +16,10 @@ class ContainerAdminTests extends AbstractAdminTests {
 	@Override
 	protected Admin admin() {
 		Admin admin = new Admin();
-		admin.withHost(container.getHost());
+		// These Linux-only tests create databases with automatically assigned ports.
+		// Reach the container directly: only the fixed 12000 port is forwarded to the host.
+		admin.withHost(container.getContainerInfo().getNetworkSettings().getNetworks().values().iterator().next()
+				.getIpAddress());
 		return admin;
 	}
 

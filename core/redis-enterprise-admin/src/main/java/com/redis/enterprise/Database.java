@@ -44,6 +44,8 @@ public class Database {
 	private Integer shardCount;
 	private ShardPlacement shardPlacement;
 	private List<ModuleConfig> modules;
+	@JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+	private List<Endpoint> endpoints = List.of();
 
 	public Database() {
 	}
@@ -197,6 +199,18 @@ public class Database {
 
 	public void setModules(List<ModuleConfig> modules) {
 		this.modules = modules;
+	}
+
+	public List<Endpoint> getEndpoints() {
+		return endpoints;
+	}
+
+	public void setEndpoints(List<Endpoint> endpoints) {
+		this.endpoints = endpoints;
+	}
+
+	/** Database access endpoints returned by Redis Enterprise, never sent in creation requests. */
+	public record Endpoint(@JsonProperty("dns_name") String dnsName, List<String> addr, int port) {
 	}
 
 	@Override

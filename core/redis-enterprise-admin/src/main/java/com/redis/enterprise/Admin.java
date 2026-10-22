@@ -2,9 +2,11 @@ package com.redis.enterprise;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
@@ -39,10 +41,10 @@ import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.HttpHeaders;
 import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.HttpStatus;
-import org.apache.hc.core5.http.io.HttpClientResponseHandler;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.ssl.SSLContexts;
+import org.apache.hc.core5.util.Args;
 import org.awaitility.Awaitility;
 import org.awaitility.core.ConditionFactory;
 
@@ -68,6 +70,9 @@ public class Admin implements AutoCloseable {
 	public static final String DEFAULT_HOST = "localhost";
 	public static final int DEFAULT_PORT = 9443;
 
+	private static final byte[] PING = "*1\r\n$4\r\nPING\r\n".getBytes(StandardCharsets.US_ASCII);
+	private static final byte[] PONG = "+PONG\r\n".getBytes(StandardCharsets.US_ASCII);
+	private static final int MAX_PING_TIMEOUT_MILLIS = 1000;
 	private static final String BOOTSTRAP = "bootstrap";
 	private static final String MODULES = "modules";
 	private static final String BDBS = "bdbs";
@@ -203,23 +208,18 @@ public class Admin implements AutoCloseable {
 
 	private <T> T read(ClassicHttpRequest request, JavaType type, int successCode)
 			throws IOException, GeneralSecurityException {
-		return execute(request, r -> {
+		HttpHost target = new HttpHost(protocol, host, port);
+		HttpClientContext localContext = HttpClientContext.create();
+		BasicScheme basicAuth = new BasicScheme();
+		basicAuth.initPreemptive(new UsernamePasswordCredentials(userName, password.toCharArray()));
+		localContext.resetAuthExchange(target, basicAuth);
+		return client().execute(request, localContext, r -> {
 			String content = EntityUtils.toString(r.getEntity());
 			if (r.getCode() == successCode) {
 				return objectMapper.readValue(content, type);
 			}
 			throw new HttpResponseException(r.getCode(), r.getReasonPhrase() + " " + content);
 		});
-	}
-
-	private <T> T execute(ClassicHttpRequest request, HttpClientResponseHandler<T> handler)
-			throws IOException, GeneralSecurityException {
-		HttpHost target = new HttpHost(protocol, host, port);
-		HttpClientContext localContext = HttpClientContext.create();
-		BasicScheme basicAuth = new BasicScheme();
-		basicAuth.initPreemptive(new UsernamePasswordCredentials(userName, password.toCharArray()));
-		localContext.resetAuthExchange(target, basicAuth);
-		return client().execute(request, localContext, handler);
 	}
 
 	private CloseableHttpClient client() throws KeyManagementException, NoSuchAlgorithmException, KeyStoreException {
@@ -261,7 +261,9 @@ public class Admin implements AutoCloseable {
 		ConditionFactory await = Awaitility.await().pollInterval(databaseCreationPollInterval)
 				.timeout(databaseCreationTimeout);
 		if (response.getType() == Type.REDIS) {
-			await.until(() -> isDatabaseAvailable(response.getUid()));
+			await.ignoreExceptionsMatching(failure -> failure instanceof IOException
+					&& !(failure instanceof HttpResponseException))
+					.until(() -> pingDatabase(response));
 		} else {
 			DefaultConnectionFactory connectionFactory = new DefaultConnectionFactory();
 			MemcachedConnection connection = connectionFactory
@@ -288,19 +290,44 @@ public class Admin implements AutoCloseable {
 		return response;
 	}
 
-	private boolean isDatabaseAvailable(long uid) throws IOException, GeneralSecurityException {
-		// The command API no longer accepts PING. Availability also checks every endpoint
-		// when the database uses the OSS Cluster API, without requiring database credentials.
-		return execute(header(new HttpGet(uri(v1(BDBS, String.valueOf(uid), "availability")))), r -> {
-			if (r.getCode() == HttpStatus.SC_OK) {
+	private boolean pingDatabase(Database database) throws IOException, GeneralSecurityException {
+		// Prefer the configured host for forwarded container ports. On a multi-node
+		// cluster the admin node may not host a proxy, so also try advertised endpoints.
+		if (pingDatabase(host, database.getPort())) {
+			return true;
+		}
+		Database current = get(v1(BDBS, String.valueOf(database.getUid())), Database.class);
+		for (Database.Endpoint endpoint : Args.notNull(current.getEndpoints(), "Database endpoints")) {
+			if (endpoint.addr() != null) {
+				for (String address : endpoint.addr()) {
+					if (pingDatabase(address, endpoint.port())) {
+						return true;
+					}
+				}
+			}
+			if (endpoint.dnsName() != null && pingDatabase(endpoint.dnsName(), endpoint.port())) {
 				return true;
 			}
-			if (r.getCode() == HttpStatus.SC_SERVICE_UNAVAILABLE) {
-				return false;
-			}
-			String content = r.getEntity() == null ? "" : EntityUtils.toString(r.getEntity());
-			throw new HttpResponseException(r.getCode(), r.getReasonPhrase() + " " + content);
-		});
+		}
+		return false;
+	}
+
+	private boolean pingDatabase(String databaseHost, int databasePort) {
+		Args.notBlank(databaseHost, "Database endpoint host");
+		Args.check(databasePort > 0 && databasePort <= 65535, "Invalid database endpoint port: %s", databasePort);
+		long creationTimeoutMillis = databaseCreationTimeout.toMillis();
+		if (creationTimeoutMillis < 1) {
+			throw new IllegalArgumentException("Database creation timeout must be at least one millisecond");
+		}
+		int timeout = (int) Math.min(creationTimeoutMillis, MAX_PING_TIMEOUT_MILLIS);
+		try (Socket socket = new Socket()) {
+			socket.connect(new InetSocketAddress(databaseHost, databasePort), timeout);
+			socket.setSoTimeout(timeout);
+			socket.getOutputStream().write(PING);
+			return Arrays.equals(PONG, socket.getInputStream().readNBytes(PONG.length));
+		} catch (IOException e) {
+			return false;
+		}
 	}
 
 	public List<Database> getDatabases() throws IOException, GeneralSecurityException {

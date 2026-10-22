@@ -65,6 +65,7 @@ class DatabaseReadinessTests {
 	@Test
 	void usesAssignedDatabasePort() throws Exception {
 		autoAssignPort = true;
+		endpoints = "[{\"addr\":[\"192.0.2.1\"],\"port\":" + databasePort + "}]";
 		try (Admin admin = admin()) {
 			admin.createDatabase(Database.builder().build());
 			Assertions.assertEquals(0, managementProbeCalls.get());
@@ -177,7 +178,7 @@ class DatabaseReadinessTests {
 				respond(exchange, creationStatus,
 						"{\"uid\":42,\"type\":\"redis\",\"port\":" + (autoAssignPort ? 0 : databasePort) + "}");
 			} else if (path.equals("/v1/bdbs/42") && exchange.getRequestMethod().equals("GET")) {
-				respond(exchange, 200, "{\"uid\":42,\"type\":\"redis\",\"port\":" + databasePort
+				respond(exchange, 200, "{\"uid\":42,\"type\":\"redis\",\"port\":" + (autoAssignPort ? 0 : databasePort)
 						+ ",\"endpoints\":" + endpoints + "}");
 			} else {
 				managementProbeCalls.incrementAndGet();

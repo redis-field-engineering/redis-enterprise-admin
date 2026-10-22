@@ -306,6 +306,10 @@ public class Admin implements AutoCloseable {
 			if (endpoint.port() == 0) {
 				continue;
 			}
+			// Auto-assigned ports live on the endpoint; the database's port can remain zero.
+			if (pingDatabase(host, endpoint.port())) {
+				return true;
+			}
 			if (endpoint.addr() != null) {
 				for (String address : endpoint.addr()) {
 					if (pingDatabase(address, endpoint.port())) {

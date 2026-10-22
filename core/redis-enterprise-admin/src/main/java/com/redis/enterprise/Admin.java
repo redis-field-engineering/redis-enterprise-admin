@@ -39,6 +39,7 @@ import org.apache.hc.core5.http.ClassicHttpRequest;
 import org.apache.hc.core5.http.HttpHeaders;
 import org.apache.hc.core5.http.HttpHost;
 import org.apache.hc.core5.http.HttpStatus;
+import org.apache.hc.core5.http.io.HttpClientResponseHandler;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 import org.apache.hc.core5.ssl.SSLContexts;
@@ -67,7 +68,6 @@ public class Admin implements AutoCloseable {
 	public static final String DEFAULT_HOST = "localhost";
 	public static final int DEFAULT_PORT = 9443;
 
-	private static final Command PING = Command.name("PING").build();
 	private static final String BOOTSTRAP = "bootstrap";
 	private static final String MODULES = "modules";
 	private static final String BDBS = "bdbs";
@@ -203,18 +203,23 @@ public class Admin implements AutoCloseable {
 
 	private <T> T read(ClassicHttpRequest request, JavaType type, int successCode)
 			throws IOException, GeneralSecurityException {
-		HttpHost target = new HttpHost(protocol, host, port);
-		HttpClientContext localContext = HttpClientContext.create();
-		BasicScheme basicAuth = new BasicScheme();
-		basicAuth.initPreemptive(new UsernamePasswordCredentials(userName, password.toCharArray()));
-		localContext.resetAuthExchange(target, basicAuth);
-		return client().execute(request, localContext, r -> {
+		return execute(request, r -> {
 			String content = EntityUtils.toString(r.getEntity());
 			if (r.getCode() == successCode) {
 				return objectMapper.readValue(content, type);
 			}
 			throw new HttpResponseException(r.getCode(), r.getReasonPhrase() + " " + content);
 		});
+	}
+
+	private <T> T execute(ClassicHttpRequest request, HttpClientResponseHandler<T> handler)
+			throws IOException, GeneralSecurityException {
+		HttpHost target = new HttpHost(protocol, host, port);
+		HttpClientContext localContext = HttpClientContext.create();
+		BasicScheme basicAuth = new BasicScheme();
+		basicAuth.initPreemptive(new UsernamePasswordCredentials(userName, password.toCharArray()));
+		localContext.resetAuthExchange(target, basicAuth);
+		return client().execute(request, localContext, handler);
 	}
 
 	private CloseableHttpClient client() throws KeyManagementException, NoSuchAlgorithmException, KeyStoreException {
@@ -254,9 +259,9 @@ public class Admin implements AutoCloseable {
 		}
 		Database response = post(v1(BDBS), database, Database.class);
 		ConditionFactory await = Awaitility.await().pollInterval(databaseCreationPollInterval)
-				.timeout(databaseCreationTimeout).ignoreExceptions();
+				.timeout(databaseCreationTimeout);
 		if (response.getType() == Type.REDIS) {
-			await.until(() -> executeCommand(response.getUid(), PING).getResponse().asBoolean());
+			await.until(() -> isDatabaseAvailable(response.getUid()));
 		} else {
 			DefaultConnectionFactory connectionFactory = new DefaultConnectionFactory();
 			MemcachedConnection connection = connectionFactory
@@ -275,12 +280,27 @@ public class Admin implements AutoCloseable {
 						connectionEstablished.set(true);
 					}
 				});
-				await.until(connectionEstablished::get);
+				await.ignoreExceptions().until(connectionEstablished::get);
 			} finally {
 				connection.shutdown();
 			}
 		}
 		return response;
+	}
+
+	private boolean isDatabaseAvailable(long uid) throws IOException, GeneralSecurityException {
+		// The command API no longer accepts PING. Availability also checks every endpoint
+		// when the database uses the OSS Cluster API, without requiring database credentials.
+		return execute(header(new HttpGet(uri(v1(BDBS, String.valueOf(uid), "availability")))), r -> {
+			if (r.getCode() == HttpStatus.SC_OK) {
+				return true;
+			}
+			if (r.getCode() == HttpStatus.SC_SERVICE_UNAVAILABLE) {
+				return false;
+			}
+			String content = r.getEntity() == null ? "" : EntityUtils.toString(r.getEntity());
+			throw new HttpResponseException(r.getCode(), r.getReasonPhrase() + " " + content);
+		});
 	}
 
 	public List<Database> getDatabases() throws IOException, GeneralSecurityException {

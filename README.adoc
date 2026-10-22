@@ -12,6 +12,12 @@ image:https://img.shields.io/github/downloads/{project-owner}/{project-name}/tot
 
 Java admin client for Redis Enterprise that wraps the REST API.
 
+`Admin.createDatabase` waits for Redis database availability using
+`GET /v1/bdbs/{uid}/availability`. This checks every endpoint for an OSS-cluster
+database and at least one endpoint otherwise, without issuing Redis commands
+through the management API. HTTP 503 is retried within the configured database
+creation timeout; other HTTP errors are propagated to the caller.
+
 == Getting Started
 
 .Gradle
